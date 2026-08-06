@@ -55,7 +55,7 @@ TEST_F(KeysWrapperFixture, ChaCha20_BasicCheck) {
 }
 
 TEST_F(KeysWrapperFixture, FSCC20Poly1305_BasicCheck) {
-   // Common AAD for example
+   // AAD for example
    int AAD = std::strlen(TEST_TEXT);
    std::span<const std::byte> AAD_span = { reinterpret_cast<const std::byte*>(&AAD), sizeof(AAD) };
 

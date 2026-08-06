@@ -8,8 +8,7 @@
 namespace remc::net {
 
 //
-// KeysWrapper impl
-//
+// KeysWrapper
 //
 KeysWrapper::~KeysWrapper() noexcept {
    ::sodium_memzero(private_key_.data(), private_key_.size());
@@ -27,38 +26,46 @@ KeysWrapper& KeysWrapper::operator=(KeysWrapper&& other) noexcept {
 }
 
 // compute public from private
-std::array<uint8_t, crypto_scalarmult_BYTES> KeysWrapper::GetPublicKey() const noexcept {
-   std::array<uint8_t, crypto_scalarmult_BYTES> public_key;
-   ::crypto_scalarmult_base(public_key.data(), private_key_.data());
-
+std::array<std::byte, crypto_scalarmult_BYTES> KeysWrapper::GetPublicKey() const noexcept {
+   std::array<std::byte, crypto_scalarmult_BYTES> public_key;
+   ::crypto_scalarmult_base(reinterpret_cast<uint8_t*>(public_key.data()), 
+                            reinterpret_cast<const uint8_t*>(private_key_.data()));
    return public_key;
 }
 
 // compute shared key from public key of other side
-[[nodiscard]] bool KeysWrapper::ComputeSharedKey(
-   const std::array<uint8_t, crypto_scalarmult_BYTES>& other_public_key) noexcept
-{
-   std::array<uint8_t, crypto_scalarmult_BYTES> tmp;
+[[nodiscard]] bool KeysWrapper::ComputeSharedKey(std::span<const std::byte> other_public_key) noexcept {
+   assert(other_public_key.size() == crypto_scalarmult_BYTES);
+
+   std::array<std::byte, crypto_scalarmult_BYTES> tmp;
    // compute and check key valid
-   if (::crypto_scalarmult(tmp.data(), private_key_.data(), other_public_key.data()))
+   if (::crypto_scalarmult(reinterpret_cast<uint8_t*>(tmp.data()), 
+                           reinterpret_cast<uint8_t*>(private_key_.data()), 
+                           reinterpret_cast<const uint8_t*>(other_public_key.data()))) {
       return false;
+   }
    // hash shared
-   ::crypto_generichash(shared_key_.data(), shared_key_.size(),
-                        tmp.data(),         tmp.size(),
-                        nullptr,            0);
+   ::crypto_generichash(reinterpret_cast<uint8_t*>(shared_key_.data()), shared_key_.size(),
+                        reinterpret_cast<uint8_t*>(tmp.data()),         tmp.size(),
+                        nullptr,                                        0);
    // erase tmp for safety
    ::sodium_memzero(tmp.data(), tmp.size());
 
    return true;
 }
 
-std::string KeysWrapper::GetKeyAsString(const std::array<uint8_t, crypto_scalarmult_BYTES>& key) const {
+// returns hex string
+std::string KeysWrapper::GetKeyAsHexString(const std::array<std::byte, crypto_scalarmult_BYTES>& key) const {
    std::string result;
    result.reserve(crypto_scalarmult_BYTES);
    for (const auto& i : key)
-      result += std::format("{:02x}", i);
+      result += std::format("{:02x}", static_cast<char>(i));
    
    return result;
+}
+
+std::string_view KeysWrapper::GetKeyAsString(const std::array<std::byte, crypto_scalarmult_BYTES>& key) const {
+   return std::string_view{ reinterpret_cast<const char*>(key.data()), key.size() };
 }
 
 } // namespace remc::net

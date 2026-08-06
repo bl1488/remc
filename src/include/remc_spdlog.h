@@ -1,7 +1,7 @@
 #ifndef SPDLOG_WRAPPER_H_
 #define SPDLOG_WRAPPER_H_
 
-#include <iostream>  
+#include <iostream>
 #include <string_view>
 
 #include <spdlog/spdlog.h>

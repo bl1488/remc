@@ -45,7 +45,6 @@ void ZeroMemory(Type* ptr, std::size_t n) {
 //
 // LE
 //
-//
 template<typename Type> requires std::integral<Type>
 constexpr Type ValueToLE(Type value) noexcept {
    if constexpr (std::endian::native == std::endian::little)
@@ -69,7 +68,6 @@ constexpr void WriteLE(PtrType ptr, Type value) noexcept {
 //
 // BE
 //
-//
 template<typename Type> requires std::integral<Type>
 constexpr Type ValueToBE(Type value) noexcept {
    if constexpr (std::endian::native == std::endian::big)
@@ -92,7 +90,6 @@ constexpr void WriteBE(PtrType ptr, Type value) noexcept {
 
 //
 // Random
-//
 //
 template<typename Type = std::size_t> requires std::integral<Type>
 Type Random() noexcept {

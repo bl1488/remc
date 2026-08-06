@@ -1,7 +1,7 @@
 CC         = clang++
 BUILD_DIR  = build
 # Default -O1 -g (ASAN_UBSAN)
-BUILD_TYPE ?= ASAN_UBSAN
+BUILD_TYPE ?= DEBUG
 
 .PHONY:       	  \
 	build-server  \
@@ -17,6 +17,7 @@ build-server:
 		-DCMAKE_CXX_COMPILER=${CC}      \
 		-DREMC_BUILD_TYPE=$(BUILD_TYPE) \
 		-DBUILD_SERVER=ON				     \
+		-DBUILD_CLIENT=OFF			     \
 		-B ${BUILD_DIR}
 	@cmake --build ${BUILD_DIR} --target remc-server
 
@@ -26,6 +27,7 @@ build-client:
 		-DCMAKE_CXX_COMPILER=${CC}      \
 		-DREMC_BUILD_TYPE=$(BUILD_TYPE) \
 		-DBUILD_CLIENT=ON				     \
+		-DBUILD_SERVER=OFF				  \
 		-B ${BUILD_DIR}
 	@cmake --build ${BUILD_DIR} --target remc-client
 

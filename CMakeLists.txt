@@ -9,7 +9,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD            23)
 set(CMAKE_CXX_STANDARD_REQUIRED   ON)
 
-set(REMC_BUILD_TYPE "ASAN_UBSAN" CACHE STRING "Build type: DEBUG, RELEASE, VALGRIND, ASAN_UBSAN, TSAN")
+set(REMC_BUILD_TYPE "DEBUG" 
+   CACHE STRING "Build type: DEBUG, RELEASE, SAN, TSAN")
 
 option(BUILD_CRYPTO_MODULE "Build remc-crypto module." ON)
 option(BUILD_GUI_MODULE    "Build remc-gui module."    OFF)
@@ -22,27 +23,45 @@ option(BUILD_CLIENT        "Build client project."     ON)
 #    CC OPTIONS
 #====================
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-   # Default options
-   add_compile_options(-Wall -Wextra -Werror -Wshadow -Wno-unused-private-field)
-   # Build type
+   # default options
+   add_compile_options(-Wall
+                       -Wextra
+                       -Wshadow
+                       -Wpedantic
+                       -Wdouble-promotion
+                       -Wunused-parameter
+                       -Wno-unused-private-field
+                       -fomit-frame-pointer)
+   # build types
+   # release
    if     (REMC_BUILD_TYPE STREQUAL "RELEASE")
-      add_compile_options(-O3)
-   elseif (REMC_BUILD_TYPE STREQUAL "VALGRIND")
-      add_compile_options(-O2 -g)
-   elseif (REMC_BUILD_TYPE STREQUAL "ASAN_UBSAN")
-      add_compile_options(-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -D_GLIBCXX_DEBUG)
+      add_compile_options(-O2
+                          -flto=auto
+                          -march=native)
+      add_link_options(-flto=auto  -fuse-ld=lld)
+   # sanitizers build
+   # using: ASan, UBSan, UAFSan
+   elseif (REMC_BUILD_TYPE STREQUAL "SAN")
+      add_compile_options(-O1
+                          -g
+                          -fsanitize=address,undefined
+                          -fsanitize-address-use-after-return=always
+                          -D_GLIBCXX_DEBUG)
       add_link_options(-fsanitize=address,undefined)
+   # sanitizer build for threads (TSan)
    elseif (REMC_BUILD_TYPE STREQUAL "TSAN")
-      add_compile_options(-O1 -g -fsanitize=thread -fno-omit-frame-pointer)
+      add_compile_options(-O1
+                          -g
+                          -fsanitize=thread
+                          -D_GLIBCXX_DEBUG)
       add_link_options(-fsanitize=thread)
+   # debug
    else()
-      # Debug
-      message(WARNING "Wrong REMC_BUILD_TYPE='${REMC_BUILD_TYPE}'! Switching to Debug mode...")
       add_compile_options(-O0 -g)
    endif()
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-# TODO: MSVC options
-# ...
+   # TODO: MSVC options
+   # ...
 endif()
 
 #====================
@@ -66,12 +85,12 @@ if (BUILD_TEST_MODULE)
 endif()
 
 if (BUILD_GUI_MODULE)
-# TODO: gui
-# ...
+   # TODO: gui
+   # ...
 endif()
 
 # debug print
-message("====================================================")
+message("=======================================")
 message("REMC_BUILD_TYPE...................${REMC_BUILD_TYPE}")
 message("BUILD_CRYPTO_MODULE...............${BUILD_CRYPTO_MODULE}")
 message("BUILD_GUI_MODULE..................${BUILD_GUI_MODULE}")
@@ -79,21 +98,17 @@ message("BUILD_NET_MODULE..................${BUILD_NET_MODULE}")
 message("BUILD_TEST_MODULE.................${BUILD_TEST_MODULE}")
 message("BUILD_SERVER......................${BUILD_SERVER}")
 message("BUILD_CLIENT......................${BUILD_CLIENT}")
-message("====================================================")
+message("=======================================")
 
 #====================
 #    EXECUTABLES
 #====================
-if (NOT BUILD_SERVER AND NOT BUILD_CLIENT AND NOT BUILD_TEST_MODULE)
-   message(FATAL_ERROR "At least one of the BUILD_SERVER or BUILD_CLIENT parameters must be enabled. 
-      Alternatively, build using BUILD_TEST_MODULE. ")
-endif()
-
 if (BUILD_SERVER)
    add_executable(remc-server src/server_main.cpp)
-   target_link_libraries(remc-server PRIVATE ModuleCrypto ModuleNet)
+   target_link_libraries(remc-server PRIVATE ModuleNet)
 endif()
 
 if (BUILD_CLIENT)
    add_executable(remc-client src/client_main.cpp)
+   target_link_libraries(remc-client PRIVATE ModuleNet)
 endif()
