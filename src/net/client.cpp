@@ -50,7 +50,7 @@ bool SessionClient::Write(uint32_t flags, std::vector<std::byte> payload, WriteC
 void SessionClient::WriteImpl(WriteCallbackType cb) {
    auto opt = message_queue_.Pop<uint16_t>();
    if (!opt) {
-      GlobalLogWarning("message queue Pop() failed");
+      GlobalLogDebug("message queue Pop() failed");
       return;
    }
    auto buffer = std::make_shared<std::vector<std::byte>>(opt.value());
@@ -67,23 +67,43 @@ void SessionClient::WriteImpl(WriteCallbackType cb) {
             self->WriteImpl(std::move(cb));
       }
       else {
-         // todo: handle error
-         // ...
+         GlobalLogInfo("connection was lost [{}:{}]", ec.value(), ec.message());
+         // maybe reconnect?
       }
    });
 }
 
-//
-// Client
-//
-void Client::Connect(const char* addr, unsigned short port) {
-   tcp::resolver res(GetExecutor());
-   auto endp = res.resolve(addr, std::to_string(port));
-   // tmp socket
-   tcp::socket sock(GetExecutor());
-   asio::connect(sock, endp);
-   // init session
-   session_ = std::make_shared<SessionClient>(std::move(sock), *pool_);
+void SessionClient::Read() {
+   auto buffer = std::make_shared<std::vector<std::byte>>(global::TCP_TOTAL_PACKET_SIZE);
+   // async read
+   socket_.async_read_some(asio::buffer(*buffer),
+   [self = shared_from_this(), buffer] (const asio::error_code& ec, [[maybe_unused]] std::size_t length) mutable {
+      if (ec) {
+         // todo: handle error
+         // ...
+         return;
+      }
+      // increment counter for poly1305 nonce
+      ++self->message_counter_;
+      // refresh timestamp
+      self->last_timestamp_ = std::time(nullptr);
+
+      // parse packet and retrieve the message_id to invoke 
+      // the callback, if one exists
+      auto p = ReadPacket(*buffer, self->message_counter_, self->keys_.GetSharedKey());
+      if (p) {
+         auto packet = std::make_shared<Packet>(p.value());
+         if (self->task_queue_.contains(p->header.message_id)) {
+            asio::post(self->pool_, 
+            [self = self->shared_from_this(), packet, cb = std::move(self->task_queue_[packet->header.message_id])] {
+                  cb(packet, self);
+            });
+         }               
+      }
+      else GlobalLogDebug("ReadPacket() failed");
+
+      self->Read();
+   });
 }
 
 } // namespace remc::net

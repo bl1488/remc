@@ -13,6 +13,9 @@
 
 namespace remc::utils {
 
+//
+// Other
+//
 template<typename TimeType = std::chrono::nanoseconds, typename ExprType, typename... ArgsType> 
    requires std::invocable<ExprType&&, ArgsType&&...>
 TimeType ComputeExprTime(ExprType&& expr, ArgsType&&... args) 
@@ -40,6 +43,20 @@ void ZeroMemory(Type* ptr, std::size_t n) {
    // DSE
    asm volatile("" : : "r"(ptr) : "memory");
 #endif
+}
+
+template<typename Type>
+std::string BufferToHexString(std::span<const Type> buffer, const char* sep = "") {
+   assert(!buffer.empty());
+
+   std::size_t size = buffer.size() * sizeof(Type);
+
+   std::string result;
+   result.reserve(size * 2);
+   for (std::size_t i = 0; i < size; ++i)
+      result += std::format("{:02x}{}", *(reinterpret_cast<const uint8_t*>(buffer.data()) + i), sep);
+
+   return result;
 }
 
 //

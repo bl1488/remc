@@ -3,13 +3,12 @@
 
 #include "net/common.h"
 #include "include/remc_utils.h"
-#include "keys_wrapper.h"
-#include "crypto/cc20poly1305.h"
+#include "crypto/keys_wrapper.h"
 
 #include <memory>
 #include <ctime>
+#include <span>
 #include <utility>
-#include <string>
 
 #include <asio.hpp>
 
@@ -40,7 +39,7 @@ public:
 
    uint64_t    GetMessageCounter() const noexcept { return message_counter_; }
 
-   KeysWrapper& KeysInfo()               noexcept { return keys_;            }
+   crypto::KeysWrapper& KeysInfo()       noexcept { return keys_;            }
 
 protected:
    uint64_t GenerateSessionId() const noexcept {
@@ -52,7 +51,8 @@ protected:
    // socket from acceptor
    tcp::socket socket_;
    // private and shared keys
-   KeysWrapper keys_;
+   crypto::KeysWrapper 
+               keys_;
    // session id for managment by worker or smth else
    uint64_t    session_id_;
    // nonce for cc20-poly1305
@@ -61,20 +61,22 @@ protected:
    std::time_t last_timestamp_;
 };
 
-std::vector<std::byte> CreatePacket(std::span<std::byte> 
-                                              payload,
-                                    uint16_t  version, 
-                                    uint32_t  flags, 
-                                    uint64_t  nonce,
-                                    uint64_t  message_id,
-                                    std::span<const std::byte>
-                                              shared_key);
+std::vector<std::byte> CreatePacket(
+   std::span<std::byte> 
+            payload,
+   uint16_t version, 
+   uint32_t flags, 
+   uint64_t nonce,
+   uint64_t message_id,
+   std::span<const std::byte>
+            shared_key);
 
-std::optional<Packet> ReadPacket(std::vector<std::byte> 
-                                          buffer,
-                                 uint64_t nonce, 
-                                 std::span<const std::byte> 
-                                          shared_key);
+std::optional<Packet> ReadPacket(
+   std::vector<std::byte> 
+            buffer,
+   uint64_t nonce, 
+   std::span<const std::byte> 
+            shared_key);
 
 } // namespace remc::net
 

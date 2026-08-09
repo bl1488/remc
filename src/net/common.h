@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <span>
+#include <string>
 #include <vector>
 
 namespace remc::net {
@@ -20,8 +21,8 @@ struct Packet {
    };
    
    enum Flags : uint16_t {
-      FLAG_NO_CRYPTO      = 0b01,  // dont crypt/decrypt payload
-      FLAG_TYPE_HANDSHAKE = 0b11,  // message is handshake
+      FLAG_NO_CRYPTO      = 0b01,  // crypt/decrypt payload
+      FLAG_TYPE_HANDSHAKE = 0b11,  // handshake
       FLAG_TEST_MESSAGE   = 0b11111111111111
    };
 
@@ -30,6 +31,11 @@ struct Packet {
       if (payload.size() >= 16)
          return { payload.data() + payload.size() - 16, 16 };
       return {};
+   }
+
+   std::string GetPayloadAsString() const noexcept {
+      return std::string(reinterpret_cast<const char*>(payload.data()), 
+                         payload.size());
    }
 
 public:

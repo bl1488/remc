@@ -1,6 +1,5 @@
 #include "include/remc_spdlog.h"
 #include "net/server.h"
-#include "include/ring_buffer.h"
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
    // init global logger
@@ -28,6 +27,11 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
 
       if (buffer == "exit")
          break;
+      else if (buffer == "3") {
+         auto& session = server.BeginList()->get()->SessionListBegin()->second;
+         std::cout << session->GetMessageCounter() << '\n'
+            << session->KeysInfo().GetKeyAsHexString(session->KeysInfo().GetSharedKey()) << '\n';
+      }
    }
 
    server.Stop();

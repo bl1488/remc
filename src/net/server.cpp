@@ -1,4 +1,5 @@
 #include "server.h"
+#include "asio/cancellation_signal.hpp"
 #include "include/remc_spdlog.h"
 
 namespace remc::net {
@@ -6,7 +7,7 @@ namespace remc::net {
 void DefaultReadCallback(std::vector<std::byte> buffer, std::shared_ptr<SessionServer> session) {
    assert(session);
 
-   auto p = ReadPacket(std::move(buffer), session->GetMessageCounter(), session->KeysInfo().GetSharedKey());
+   auto p = ReadPacket(std::move(buffer), session->GetMessageCounter() - 1, session->KeysInfo().GetSharedKey());
    if (!p) {
       GlobalLogError("cb: ReadPacket() failed");
       return;
@@ -15,7 +16,7 @@ void DefaultReadCallback(std::vector<std::byte> buffer, std::shared_ptr<SessionS
    auto& packet = p.value();
 
    if (packet.header.flags == Packet::FLAG_TYPE_HANDSHAKE) {
-      GlobalLogDebug("cb: FLAG_TYPE_HANDSHAKE");
+      GlobalLogDebug("flag: FLAG_TYPE_HANDSHAKE");
       // send my public to client
       session->Write(Packet::FLAG_TYPE_HANDSHAKE, 
                      packet.header.message_id, 
@@ -25,30 +26,25 @@ void DefaultReadCallback(std::vector<std::byte> buffer, std::shared_ptr<SessionS
          GlobalLogError("cb: error computing shared key");
    }
    else if (packet.header.flags == Packet::FLAG_TEST_MESSAGE) {
-      GlobalLogDebug("cb: FLAG_TYPE_HANDSHAKE");
+      GlobalLogDebug("flag: FLAG_TYPE_HANDSHAKE");
       session->Write(Packet::FLAG_TEST_MESSAGE,
                      packet.header.message_id,
                      std::string("asnwer from server ") + std::to_string(session->GetMessageCounter()));
-      // test
-#if 0
-      std::cout << "reseting callback...\n";
-      session->ResetReadCallback([](std::vector<std::byte> buffer, std::shared_ptr<SessionServer> session) {
-         std::cout << "new cb\n";
-      });
-#endif
    }
 
-   std::cout << "==========================================\n";
-   std::cout << "HEADER:\n" 
-             << "version.........: " << packet.header.version      << '\n'
+   asio::cancellation_signal sig;
+
+#ifndef NDEBUG
+   std::cout << "version.........: " << packet.header.version      << '\n'
              << "flags...........: " << packet.header.flags        << '\n'
              << "timestamp.......: " << packet.header.timestamp    << '\n'
              << "message-id......: " << packet.header.message_id   << '\n'
              << "message-size....: " << packet.header.message_size << '\n'
              << "nonce...........: " << packet.header.nonce        << '\n';
-   std::cout << "MESSAGE:\n";
-   std::cout.write(reinterpret_cast<char*>(packet.payload.data()), packet.payload.size());
-   std::cout << "\n==========================================\n";
+
+   auto payload = packet.GetPayloadAsString();
+   std::cout << std::format("message.........: '{}' : {}\n", payload.data(), payload.size()) << '\n';
+#endif
 }
 
 // 
@@ -95,7 +91,7 @@ void Worker::Run() {
       Heartbeat();
       // start thread
       thread_ = std::thread([this]{ io_.run(); });
-
+      
       GlobalLogInfo("worker running");
    }
 }
@@ -204,7 +200,6 @@ void SessionServer::WriteImpl() {
       // refresh timestamp
       self->last_timestamp_ = std::time(nullptr);
 
-      // call next?
       if (!self->message_queue_.IsEmpty())
          self->WriteImpl();
    });
