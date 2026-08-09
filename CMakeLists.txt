@@ -16,44 +16,45 @@ option(BUILD_CRYPTO_MODULE "Build remc-crypto module." ON)
 option(BUILD_GUI_MODULE    "Build remc-gui module."    OFF)
 option(BUILD_NET_MODULE    "Build remc-net module."    ON)
 option(BUILD_TEST_MODULE   "Build test module."        OFF)
-option(BUILD_SERVER        "Build server project."     ON)
-option(BUILD_CLIENT        "Build client project."     ON)
+option(BUILD_SERVER        "Build server project."     OFF)
+option(BUILD_CLIENT        "Build client project."     OFF)
 
-#====================
-#    CC OPTIONS
-#====================
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
    # default options
-   add_compile_options(-Wall
-                       -Wextra
-                       -Wshadow
-                       -Wpedantic
-                       -Wdouble-promotion
-                       -Wunused-parameter
-                       -Wno-unused-private-field
-                       -fomit-frame-pointer)
+   add_compile_options(
+      -Wall
+      -Wextra
+      -Wshadow
+      -Wpedantic
+      -Wdouble-promotion
+      -Wunused-parameter
+      -Wno-unused-private-field
+      -fomit-frame-pointer)
    # build types
    # release
    if     (REMC_BUILD_TYPE STREQUAL "RELEASE")
-      add_compile_options(-O2
-                          -flto=auto
-                          -march=native)
-      add_link_options(-flto=auto  -fuse-ld=lld)
+      add_compile_options(
+         -O2
+         -flto=auto
+         -march=native)
+      add_link_options(-flto=auto -fuse-ld=lld)
    # sanitizers build
    # using: ASan, UBSan, UAFSan
    elseif (REMC_BUILD_TYPE STREQUAL "SAN")
-      add_compile_options(-O1
-                          -g
-                          -fsanitize=address,undefined
-                          -fsanitize-address-use-after-return=always
-                          -D_GLIBCXX_DEBUG)
+      add_compile_options(
+         -O1
+         -g
+         -fsanitize=address,undefined
+         -fsanitize-address-use-after-return=always
+         -D_GLIBCXX_DEBUG)
       add_link_options(-fsanitize=address,undefined)
    # sanitizer build for threads (TSan)
    elseif (REMC_BUILD_TYPE STREQUAL "TSAN")
-      add_compile_options(-O1
-                          -g
-                          -fsanitize=thread
-                          -D_GLIBCXX_DEBUG)
+      add_compile_options(
+         -O1
+         -g
+         -fsanitize=thread
+         -D_GLIBCXX_DEBUG)
       add_link_options(-fsanitize=thread)
    # debug
    else()
@@ -65,31 +66,25 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
 endif()
 
 #====================
-#        LIBS
+#      MODULES
 #====================
-find_package(absl        REQUIRED CONFIG)
-find_package(PkgConfig   REQUIRED)
-pkg_check_modules(SODIUM REQUIRED libsodium IMPORTED_TARGET)
-
+# crypto
 if (BUILD_CRYPTO_MODULE)
    add_subdirectory(src/crypto)
 endif()
-
+# net
 if (BUILD_NET_MODULE)
    add_subdirectory(src/net)
 endif()
-
+# tests
 if (BUILD_TEST_MODULE)
-   enable_testing()
    add_subdirectory(src/tests)
 endif()
-
+# gui
 if (BUILD_GUI_MODULE)
-   # TODO: gui
-   # ...
+   add_subdirectory(src/gui)
 endif()
 
-# debug print
 message("=======================================")
 message("REMC_BUILD_TYPE...................${REMC_BUILD_TYPE}")
 message("BUILD_CRYPTO_MODULE...............${BUILD_CRYPTO_MODULE}")
@@ -104,11 +99,15 @@ message("=======================================")
 #    EXECUTABLES
 #====================
 if (BUILD_SERVER)
-   add_executable(remc-server src/server_main.cpp)
-   target_link_libraries(remc-server PRIVATE ModuleNet)
+   add_executable(remc-server 
+      src/server_main.cpp)
+   target_link_libraries(remc-server PRIVATE 
+      ModuleNet)
 endif()
 
 if (BUILD_CLIENT)
-   add_executable(remc-client src/client_main.cpp)
-   target_link_libraries(remc-client PRIVATE ModuleNet)
+   add_executable(remc-client
+      src/client_main.cpp)
+   target_link_libraries(remc-client PRIVATE
+      ModuleNet)
 endif()
