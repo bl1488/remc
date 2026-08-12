@@ -1,6 +1,7 @@
 #ifndef SPDLOG_WRAPPER_H_
 #define SPDLOG_WRAPPER_H_
 
+#include "spdlog/common.h"
 #include <iostream>
 #include <string_view>
 
@@ -13,27 +14,35 @@ namespace remc {
 constexpr const char* const DEFAULT_GLOBAL_LOGGER_NAME = "global";
 constexpr const char* const DEFAULT_LOGFILE_PATH       = "logs/log.txt";
 
-inline void InitFileConsoleLogger(const std::string& logger_name, const std::string& logfile_path) {
+inline void InitFileConsoleLogger(
+   std::string_view          logger_name, 
+   std::string_view          logfile_path,
+   spdlog::level::level_enum log_level = spdlog::level::debug) 
+{
    auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
-      logfile_path, 1024 * 1024 * 10, 1);
+      logfile_path.data(), 1024 * 1024 * 10, 1
+   );
    file_sink->set_level(spdlog::level::info);
 
    auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-   console_sink->set_level(spdlog::level::debug);
+   console_sink->set_level(log_level);
 
    auto logger = std::make_shared<spdlog::logger>(
-      logger_name, spdlog::sinks_init_list{file_sink, console_sink});
-      
-   logger->set_pattern("[%Y-%m-%d::%H-%M-%S](%^%l%$)\t%v");
-   logger->set_level(spdlog::level::debug);
+      logger_name.data(), spdlog::sinks_init_list{file_sink, console_sink}
+   );
+   logger->set_pattern("[%Y-%m-%d::%H-%M-%S](%^%l%$) %v");
+   logger->set_level(log_level);
    logger->flush_on(spdlog::level::info);
 
    spdlog::register_logger(logger);
 }
 
 template<typename... Args>
-inline void Log(std::string_view name, spdlog::level::level_enum level, 
-                std::string_view fmt,  Args&&... args) 
+inline void Log(
+   std::string_view name, 
+   spdlog::level::level_enum level, 
+   std::string_view fmt,  
+   Args&&... args) 
 {
    auto logger = spdlog::get(name.data());
    if (logger)
