@@ -28,18 +28,25 @@ bool SessionClient::Write(uint32_t flags, std::vector<std::byte> payload, WriteC
    [self = this->shared_from_this(), flags, payload = std::move(payload), cb = std::move(cb)] mutable {
       // create packet
       std::size_t message_id = utils::Random<uint64_t>();
-      auto packet = CreatePacket(payload, 
-                                 1,
-                                 flags, 
-                                 self->message_counter_,
-                                 message_id,
-                                 self->keys_.GetSharedKey());
+      auto packet = CreatePacket(
+         payload, 
+         1,
+         flags, 
+         self->message_counter_,
+         message_id,
+         self->keys_.GetSharedKey()
+      );
+      if (!packet) {
+         auto& err = packet.error();
+         GlobalLogDebug("packet creation failed: {}:{}", err.CodeAsString(), err.Message());
+         return;
+      }
       // set callback on this message_id
       if (cb)
          self->task_queue_.emplace(message_id, std::move(cb));
 
       bool flag = self->message_queue_.IsEmpty();
-      self->message_queue_.Push<uint16_t>(packet);
+      self->message_queue_.Push<uint16_t>(packet.value());
       if (flag)
          self->WriteImpl(std::move(cb));
    });

@@ -7,6 +7,7 @@
 #include <chrono>
 #include <cassert>
 #include <cstring>
+#include <span>
 #include <functional>
 #include <bit>
 #include <thread>

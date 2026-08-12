@@ -99,6 +99,8 @@ int main(int argc, char** argv) {
       }
    }
 
+   client.Stop();
+   
    pool.join();
 
    return 0;

@@ -2,9 +2,9 @@ cmake_minimum_required(VERSION 3.20)
 
 project(remc VERSION 1.0)
 
-#====================
-#      OPTIONS
-#====================
+# ====================
+#       OPTIONS
+# ====================
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD            23)
 set(CMAKE_CXX_STANDARD_REQUIRED   ON)
@@ -20,7 +20,8 @@ option(BUILD_SERVER        "Build server project."     OFF)
 option(BUILD_CLIENT        "Build client project."     OFF)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-   # default options
+   # fix libstdc++
+   add_compile_definitions(__cpp_concepts=202002L)
    add_compile_options(
       -Wall
       -Wextra
@@ -65,9 +66,9 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
    # ...
 endif()
 
-#====================
-#      MODULES
-#====================
+# ====================
+#       MODULES
+# ====================
 # crypto
 if (BUILD_CRYPTO_MODULE)
    add_subdirectory(src/crypto)
@@ -95,9 +96,9 @@ message("BUILD_SERVER......................${BUILD_SERVER}")
 message("BUILD_CLIENT......................${BUILD_CLIENT}")
 message("=======================================")
 
-#====================
-#    EXECUTABLES
-#====================
+# ====================
+#     EXECUTABLES
+# ====================
 if (BUILD_SERVER)
    add_executable(remc-server 
       src/server_main.cpp)

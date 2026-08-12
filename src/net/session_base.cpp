@@ -1,9 +1,8 @@
 #include "session_base.h"
 #include "crypto/cc20poly1305.h"
+#include "net/common.h"
 #include "server.h"
 #include "client.h"
-
-#include <optional>
 
 #include <bitsery/serializer.h>
 #include <bitsery/bitsery.h>
@@ -14,9 +13,9 @@
 
 namespace remc::net {
 
-// ==============================
-//       bitsery instances
-// ==============================
+//
+// bitsery instances
+// 
 template<typename S>
 void serialize(S& s, remc::net::Packet::Header& header) {
    s.value2b(header.version);
@@ -35,7 +34,10 @@ void serialize(S& s, Packet& packet) {
    s.container1b(packet.payload, packet.header.message_size);
 }
 
-std::vector<std::byte> CreatePacket(
+//
+// CreatePacket
+//
+std::expected<std::vector<std::byte>, PacketError> CreatePacket(
    const std::span<std::byte> 
             payload,
    uint16_t version,
@@ -45,6 +47,14 @@ std::vector<std::byte> CreatePacket(
    std::span<const std::byte>
             shared_key) 
 {
+   // check arguments valid
+   if (payload.size() > global::TCP_PAYLOAD_SIZE_MAX || shared_key.empty()) {
+      return std::unexpected(PacketError(
+         PacketError::Code::ERROR_INVALID_ARGUMENTS,
+         std::format("invalid arguments: (size:{}) (key:{})", payload.size(), reinterpret_cast<const void*>(shared_key.data()))
+      ));
+   }
+
    using BufferType = std::vector<std::byte>;
    using OutAdapter = bitsery::OutputBufferAdapter<BufferType>;
 
@@ -59,16 +69,18 @@ std::vector<std::byte> CreatePacket(
 
    packet.payload.resize(packet.header.message_size);
 
-   // serialized header = AAD
+   // AAD
    BufferType ser_header;
    bitsery::quickSerialization<OutAdapter>(ser_header, packet.header);
 
    if (!(flags & Packet::Flags::FLAG_NO_CRYPTO)) {
       crypto::AEADChaCha20Poly1305 cc20(const_cast<std::byte*>(shared_key.data()), shared_key.size());
-      cc20.Encrypt(payload,
-                   ser_header,
-                   crypto::AEADChaCha20Poly1305::Nonce96(nonce, 0),
-                   packet.payload);
+      cc20.Encrypt(
+         payload,
+         ser_header,
+         crypto::AEADChaCha20Poly1305::Nonce96(nonce, 0),
+         packet.payload
+      );
    }
    else std::memcpy(packet.payload.data(), payload.data(), packet.header.message_size);
    
@@ -78,13 +90,24 @@ std::vector<std::byte> CreatePacket(
    return result;
 }
 
-std::optional<Packet> ReadPacket(
+//
+// ReadPacket
+//
+std::expected<Packet, PacketError> ReadPacket(
    std::vector<std::byte> 
             buffer,
    uint64_t nonce,
    std::span<const std::byte>
-            shared_key) 
+            shared_key)
 {
+   // check arguments valid
+   if (shared_key.empty()) {
+      return std::unexpected(PacketError(
+         PacketError::Code::ERROR_INVALID_ARGUMENTS,
+         std::format("invalid arguments: (key:{})", reinterpret_cast<const void*>(shared_key.data()))
+      ));
+   }
+
    using BufferType = std::vector<std::byte>;
    using InAdapter  = bitsery::InputBufferAdapter<BufferType>;
    using OutAdapter = bitsery::OutputBufferAdapter<BufferType>;
@@ -93,10 +116,12 @@ std::optional<Packet> ReadPacket(
 
    auto state = bitsery::quickDeserialization<InAdapter>({ buffer.begin(), buffer.size() }, packet);
    if (state.first != bitsery::ReaderError::NoError) {
-      GlobalLogDebug("deserialization failed");
-      return std::nullopt;
+      return std::unexpected(PacketError(
+         PacketError::Code::ERROR_INVALID_SERIALIZATION,
+         std::format("deserialization error: {}", static_cast<int>(state.first)).c_str()
+      ));
    }
-
+   // AAD
    BufferType ser_header;
    bitsery::quickSerialization<OutAdapter>(ser_header, packet.header);
    
@@ -111,8 +136,10 @@ std::optional<Packet> ReadPacket(
                         crypto::AEADChaCha20Poly1305::Nonce96(nonce, 0),
                         payload)) 
       {
-         GlobalLogDebug("packet AEAD missmatch");
-         return std::nullopt;
+         return std::unexpected(PacketError(
+            PacketError::Code::ERROR_INVALID_TAG,
+            "AEAD mismatch"
+         ));
       }
       packet.payload = std::move(payload);
       packet.header.message_size -= 16;
@@ -124,13 +151,17 @@ std::optional<Packet> ReadPacket(
    // timestamp
    std::time_t now = std::time(nullptr);
    if (now - packet.header.timestamp > global::TIMESTAMP_LIMIT) {
-      GlobalLogError("invalid packet timestamp");
-      return std::nullopt;
+      return std::unexpected(PacketError(
+         PacketError::Code::ERROR_INVALID_TIMESTAMP,
+         std::format("invalid packet timestamp ({})", packet.header.timestamp)
+      ));
    }
    // message size
    if (packet.header.message_size != packet.payload.size()) {
-      GlobalLogDebug("message size mismatch: {}:{}", packet.header.message_size, packet.payload.size());
-      return std::nullopt;
+      return std::unexpected(PacketError(
+         PacketError::Code::ERROR_INVALID_TIMESTAMP,
+         std::format("message size mismatch: {}:{}", packet.header.message_size, packet.payload.size())
+      ));
    }
 
    return packet;

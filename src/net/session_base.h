@@ -5,6 +5,11 @@
 #include "include/remc_utils.h"
 #include "crypto/keys_wrapper.h"
 
+#if __cpp_lib_expected < 202202L
+#error "std::expected not supported, __cpp_lib_expected = " __cpp_lib_expected
+#endif
+
+#include <expected>
 #include <memory>
 #include <ctime>
 #include <span>
@@ -61,22 +66,58 @@ protected:
    std::time_t last_timestamp_;
 };
 
-std::vector<std::byte> CreatePacket(
-   std::span<std::byte> 
-            payload,
-   uint16_t version, 
-   uint32_t flags, 
-   uint64_t nonce,
-   uint64_t message_id,
-   std::span<const std::byte>
-            shared_key);
+// ===== PacketError =====
+// use for return value in Create/Read-Packet
+class PacketError {
+public:
+   enum class Code : uint8_t {
+      NO_ERROR,
+      ERROR_INVALID_TIMESTAMP,
+      ERROR_INVALID_MESSAGE_LENGTH,
+      ERROR_INVALID_TAG,
+      ERROR_INVALID_SERIALIZATION,
+      ERROR_INVALID_ARGUMENTS
+   };
+public:
+   PacketError(Code code, std::string error_message) : 
+      code_(code), message_(std::move(error_message)) {}
 
-std::optional<Packet> ReadPacket(
-   std::vector<std::byte> 
-            buffer,
-   uint64_t nonce, 
-   std::span<const std::byte> 
-            shared_key);
+public:
+   std::string_view Message() const noexcept { return message_; }
+
+   Code GetCode()             const noexcept { return code_;    }
+
+   const char* CodeAsString() const noexcept {
+      switch (code_) {
+      case Code::NO_ERROR:                     return "NO_ERROR";
+      case Code::ERROR_INVALID_TIMESTAMP:      return "ERROR_INVALID_TIMESTAMP";
+      case Code::ERROR_INVALID_MESSAGE_LENGTH: return "ERROR_INVALID_MESSAGE_LENGTH";
+      case Code::ERROR_INVALID_TAG:            return "ERROR_INVALID_TAG";
+      case Code::ERROR_INVALID_SERIALIZATION:  return "ERROR_INVALID_SERIALIZATION";
+      case Code::ERROR_INVALID_ARGUMENTS:      return "ERROR_INVALID_ARGUMENTS";
+      }
+      return "unknown error";
+   }
+
+private:
+   Code        code_;
+   std::string message_;
+};
+
+std::expected<std::vector<std::byte>, PacketError> CreatePacket(
+   std::span<std::byte>       payload,
+   uint16_t                   version, 
+   uint32_t                   flags, 
+   uint64_t                   nonce,
+   uint64_t                   message_id,
+   std::span<const std::byte> shared_key
+);
+
+std::expected<Packet, PacketError> ReadPacket(
+   std::vector<std::byte>     buffer,
+   uint64_t                   nonce, 
+   std::span<const std::byte> shared_key
+);
 
 } // namespace remc::net
 

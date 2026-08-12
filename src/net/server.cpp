@@ -4,6 +4,9 @@
 
 namespace remc::net {
 
+// default read callback.
+// todo: 
+//    - handle others header::flags 
 void DefaultReadCallback(std::vector<std::byte> buffer, std::shared_ptr<SessionServer> session) {
    assert(session);
 
@@ -32,8 +35,6 @@ void DefaultReadCallback(std::vector<std::byte> buffer, std::shared_ptr<SessionS
                      std::string("asnwer from server ") + std::to_string(session->GetMessageCounter()));
    }
 
-   asio::cancellation_signal sig;
-
 #ifndef NDEBUG
    std::cout << "version.........: " << packet.header.version      << '\n'
              << "flags...........: " << packet.header.flags        << '\n'
@@ -47,7 +48,7 @@ void DefaultReadCallback(std::vector<std::byte> buffer, std::shared_ptr<SessionS
 #endif
 }
 
-// 
+//
 // Worker
 //
 void Worker::AddClient(tcp::socket&& socket) {
@@ -92,7 +93,7 @@ void Worker::Run() {
       // start thread
       thread_ = std::thread([this]{ io_.run(); });
       
-      GlobalLogInfo("worker running");
+      GlobalLogDebug("worker running");
    }
 }
 
@@ -106,7 +107,7 @@ void Worker::Stop() {
       // stop thread
       if (thread_.joinable()) thread_.join();
 
-      GlobalLogInfo("worker stopped");
+      GlobalLogDebug("worker stopped");
    }
 }
 
@@ -135,12 +136,12 @@ void Worker::Heartbeat() {
 // SessionServer
 //
 void SessionServer::Close() {
-   asio::dispatch(socket_.get_executor(), [self = shared_from_this(), this] {
+   asio::dispatch(socket_.get_executor(), [self = shared_from_this()] {
       if (self->socket_.is_open()) {
          self->socket_.shutdown(tcp::socket::shutdown_both);
          self->socket_.close();
          self->message_queue_.Clear();
-         GlobalLogDebug("session <{}> closed", session_id_);
+         GlobalLogDebug("session <{}> closed", self->session_id_);
       }
    });
 }
@@ -165,14 +166,22 @@ bool SessionServer::Write(uint32_t flags, uint64_t message_id, std::vector<std::
    asio::post(socket_.get_executor(), 
    [self = this->shared_from_this(), flags, message_id, payload = std::move(payload)] {
       // create packet
-      auto packet = CreatePacket({ const_cast<std::byte*>(payload.data()), payload.size() }, 
-                                 1,
-                                 flags,
-                                 self->message_counter_,
-                                 message_id,
-                                 self->keys_.GetSharedKey());
+      auto packet = CreatePacket(
+         { const_cast<std::byte*>(payload.data()), payload.size() }, 
+         1,
+         flags,
+         self->message_counter_,
+         message_id,
+         self->keys_.GetSharedKey()
+      );
+      if (!packet) {
+         auto& err = packet.error();
+         GlobalLogDebug("packet creation failed: {}:{}", err.CodeAsString(), err.Message());
+         return;
+      }
+         
       bool flag = self->message_queue_.IsEmpty();
-      self->message_queue_.Push<uint16_t>(packet);
+      self->message_queue_.Push<uint16_t>(packet.value());
       if (flag)
          self->WriteImpl();
    });
@@ -183,7 +192,7 @@ bool SessionServer::Write(uint32_t flags, uint64_t message_id, std::vector<std::
 void SessionServer::WriteImpl() {
    auto opt = message_queue_.Pop<uint16_t>();
    if (!opt) {
-      GlobalLogWarning("message queue Pop() failed");
+      GlobalLogDebug("message queue Pop() failed");
       return;
    }
    auto buffer = std::make_shared<std::vector<std::byte>>(opt.value());
