@@ -2,6 +2,8 @@
 #include "include/remc_spdlog.h"
 
 #include <QApplication>
+#include <qapplication.h>
+#include <qtextedit.h>
 
 int main(int argc, char** argv) {
    // init logger
@@ -12,10 +14,11 @@ int main(int argc, char** argv) {
 
    QApplication app(argc, argv);
    QApplication::setStyle("Fusion");
-
+   
    remc::gui::MainWindow main_wnd(&app);
-   main_wnd.resize(300, 400);
+   main_wnd.resize(600, 500);
    
    main_wnd.show();
+
    return app.exec();
 }

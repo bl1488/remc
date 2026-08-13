@@ -6,7 +6,11 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
 # module
 add_library(GuiModule STATIC EXCLUDE_FROM_ALL
-   gui_main.cpp)
+   details.cpp
+   gui_main.cpp
+   menu_sessions.cpp
+   menu_help.cpp
+   menu_home.cpp)
 target_link_libraries(GuiModule      PUBLIC
    Qt6::Widgets)
 
