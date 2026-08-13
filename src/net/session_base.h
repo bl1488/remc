@@ -5,10 +5,6 @@
 #include "include/remc_utils.h"
 #include "crypto/keys_wrapper.h"
 
-#if __cpp_lib_expected < 202202L
-#error "std::expected not supported, __cpp_lib_expected = " __cpp_lib_expected
-#endif
-
 #include <expected>
 #include <memory>
 #include <ctime>
