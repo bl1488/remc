@@ -117,9 +117,9 @@ Type Random() noexcept {
 
 template<std::integral Type = std::size_t>
 Type Random(Type from, Type to) noexcept {
-   assert(to > from);
+   assert(to >= from);
    static thread_local Xoshiro256Generator gen;
-   return std::uniform_int_distribution<Type>(from, to - 1)(gen);
+   return std::uniform_int_distribution<Type>(from, to)(gen);
 }
 
 } // namespace remc::utils
