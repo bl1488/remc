@@ -10,7 +10,8 @@ namespace remc::net {
 
 // ===== Packet =====
 //
-struct Packet {
+class Packet {
+public:
    struct Header {
       uint16_t version;
       uint32_t flags;
@@ -26,6 +27,7 @@ struct Packet {
       FLAG_TEST_MESSAGE   = 0b11111111111111
    };
 
+public:
    // tag stored in the last 16 bytes of payload
    std::span<const std::byte> GetTag() const noexcept {
       if (payload.size() >= 16)
@@ -39,14 +41,15 @@ struct Packet {
    }
 
 public:
-   Header header;
-   std::vector<std::byte> 
-          payload;
+   Header                 header;
+   std::vector<std::byte> payload;
 };
 
 namespace global {
 
-// timestamo limit after which the operation is considered invalid.
+// global vars for tests
+
+// timestamp limit after which the operation is considered invalid.
 // seconds
 static constexpr std::time_t TIMESTAMP_LIMIT          = 30; 
 

@@ -46,7 +46,7 @@ public:
    ~RingBuffer() = default;
 
 public:
-   template<typename PrefixSizeType = uint16_t> requires std::integral<PrefixSizeType>
+   template<std::integral PrefixSizeType = uint16_t>
    bool Push(std::span<const std::byte> data) {
       if (data.empty() || FreeSpace() < data.size() + sizeof(PrefixSizeType) || 
           data.size() > std::numeric_limits<PrefixSizeType>::max()) 
@@ -84,7 +84,7 @@ public:
    // returning only std::vector cuz async operations. 
    // i cannot guarantee the message lifetime when using std::span 
    // if you have such a guarantee you can add an overload for std::span
-   template<typename PrefixSizeType = uint16_t> requires std::integral<PrefixSizeType>
+   template<std::integral PrefixSizeType = uint16_t>
    std::optional<std::vector<std::byte>> Pop() {
       if (IsEmpty())
          return std::nullopt;

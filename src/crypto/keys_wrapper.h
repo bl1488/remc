@@ -31,8 +31,7 @@ public:
    ~KeysWrapper() noexcept;
 
 public:
-   std::array<std::byte, crypto_scalarmult_BYTES> GetPublicKey() 
-      const noexcept;
+   std::array<std::byte, crypto_scalarmult_BYTES> GetPublicKey() const noexcept;
 
    const std::array<std::byte, crypto_scalarmult_BYTES>& GetSharedKey() 
       const noexcept { return shared_key_; }

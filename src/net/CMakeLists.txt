@@ -21,7 +21,7 @@ find_package(PkgConfig REQUIRED)
 target_compile_definitions(ModuleNet PUBLIC ASIO_STANDALONE)
 
 target_link_libraries(ModuleNet      PUBLIC 
-   ModuleCrypto 
+   ModuleCrypto
    absl::flat_hash_map)
 
 target_precompile_headers(ModuleNet  PUBLIC 

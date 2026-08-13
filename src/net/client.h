@@ -5,7 +5,6 @@
 #include "session_base.h"
 #include "include/ring_buffer.h"
 
-#include <concepts>
 #include <functional>
 
 #include <asio/executor_work_guard.hpp>
