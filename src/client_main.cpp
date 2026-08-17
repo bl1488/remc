@@ -6,6 +6,8 @@
 #include <exception>
 
 int main(int argc, char** argv) {
+   std::setlocale(LC_ALL, "");
+   
    // init global logger
    remc::InitFileConsoleLogger(remc::DEFAULT_GLOBAL_LOGGER_NAME, 
                                remc::DEFAULT_LOGFILE_PATH);

@@ -2,6 +2,8 @@
 #include "net/server.h"
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
+   std::setlocale(LC_ALL, "");
+
    // init global logger
    remc::InitFileConsoleLogger(remc::DEFAULT_GLOBAL_LOGGER_NAME, 
                                remc::DEFAULT_LOGFILE_PATH);

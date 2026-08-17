@@ -11,6 +11,7 @@
 #include <functional>
 #include <bit>
 #include <thread>
+#include <windows.h>
 
 namespace remc::utils {
 
@@ -34,11 +35,10 @@ void Sleep(std::size_t delay) noexcept {
    std::this_thread::sleep_for(TimeType(delay));
 }
 
-template<typename Type>
-void ZeroMemory(Type* ptr, std::size_t n) {
-#if REMC_PALTFORM_WIN32
+[[maybe_unused]] static void SecZeroMemory(void* ptr, std::size_t n) {
+#if REMC_PLATFORM_WIN32
    ::SecureZeroMemory(ptr, n);
-#elif REMC_PLATFORM_LINUX
+#else
    assert(ptr && n);
    std::memset(ptr, 0, n);
    // DSE

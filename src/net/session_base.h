@@ -6,7 +6,7 @@
 #include "crypto/keys_wrapper.h"
 
 #if __cpp_lib_expected < 202202L
-#error "std::expected not supported, __cpp_lib_expected = " __cpp_lib_expected
+#  error "std::expected not supported, __cpp_lib_expected = " __cpp_lib_expected
 #endif
 
 #include <expected>
@@ -71,7 +71,9 @@ protected:
 class PacketError {
 public:
    enum class Code : uint8_t {
-      NO_ERROR,
+      // why NO_ERROR?
+      // because Windows defs
+      ERROR_NO_ERROR,
       ERROR_INVALID_TIMESTAMP,
       ERROR_INVALID_MESSAGE_LENGTH,
       ERROR_INVALID_TAG,
@@ -89,7 +91,7 @@ public:
 
    const char* CodeAsString() const noexcept {
       switch (code_) {
-      case Code::NO_ERROR:                     return "NO_ERROR";
+      case Code::ERROR_NO_ERROR:               return "ERROR_NO_ERROR";
       case Code::ERROR_INVALID_TIMESTAMP:      return "ERROR_INVALID_TIMESTAMP";
       case Code::ERROR_INVALID_MESSAGE_LENGTH: return "ERROR_INVALID_MESSAGE_LENGTH";
       case Code::ERROR_INVALID_TAG:            return "ERROR_INVALID_TAG";
