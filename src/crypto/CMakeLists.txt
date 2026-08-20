@@ -8,7 +8,8 @@ add_library(ModuleCrypto STATIC EXCLUDE_FROM_ALL
 
 target_include_directories(ModuleCrypto PUBLIC 
    ${CMAKE_SOURCE_DIR}/src
-   ${CMAKE_SOURCE_DIR}/libs)
+   ${CMAKE_SOURCE_DIR}/libs
+   ${CMAKE_SOURCE_DIR}/libs/spdlog)
 
 # libs
 find_package(PkgConfig   REQUIRED)
