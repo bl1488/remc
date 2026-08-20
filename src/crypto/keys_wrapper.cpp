@@ -27,8 +27,10 @@ KeysWrapper& KeysWrapper::operator=(KeysWrapper&& other) noexcept {
 // compute public from private
 std::array<std::byte, crypto_scalarmult_BYTES> KeysWrapper::GetPublicKey() const noexcept {
    std::array<std::byte, crypto_scalarmult_BYTES> public_key;
-   ::crypto_scalarmult_base(reinterpret_cast<uint8_t*>(public_key.data()), 
-                            reinterpret_cast<const uint8_t*>(private_key_.data()));
+   ::crypto_scalarmult_base(
+      reinterpret_cast<uint8_t*>(public_key.data()), 
+      reinterpret_cast<const uint8_t*>(private_key_.data())
+   );
    return public_key;
 }
 
@@ -40,27 +42,31 @@ std::array<std::byte, crypto_scalarmult_BYTES> KeysWrapper::GetPublicKey() const
    // compute and check key valid
    if (::crypto_scalarmult(reinterpret_cast<uint8_t*>(tmp.data()), 
                            reinterpret_cast<uint8_t*>(private_key_.data()), 
-                           reinterpret_cast<const uint8_t*>(other_public_key.data()))) {
+                           reinterpret_cast<const uint8_t*>(other_public_key.data()))) 
+   {
       return false;
    }
    // hash shared
-   ::crypto_generichash(reinterpret_cast<uint8_t*>(shared_key_.data()), shared_key_.size(),
-                        reinterpret_cast<uint8_t*>(tmp.data()),         tmp.size(),
-                        nullptr,                                        0);
+   ::crypto_generichash(
+      reinterpret_cast<uint8_t*>(shared_key_.data()), shared_key_.size(),
+      reinterpret_cast<uint8_t*>(tmp.data()),         tmp.size(),
+      nullptr,                                        0
+   );
    // erase tmp for safety
    ::sodium_memzero(tmp.data(), tmp.size());
 
    return true;
 }
 
+// small util
 std::string KeysWrapper::GetKeyAsHexString(std::span<const std::byte> key) {
-   return key.size() == crypto_scalarmult_BYTES ? utils::BufferToHexString(key) :
-                                                  std::string{};
+   return key.size() == crypto_scalarmult_BYTES ? 
+      utils::BufferToHexString(key) : std::string{};
 }
 
 std::string_view KeysWrapper::GetKeyAsString(const std::array<std::byte, crypto_scalarmult_BYTES>& key) const {
-   return std::string_view{ reinterpret_cast<const char*>(key.data()), 
-                            key.size() };
+   return std::string_view{ 
+      reinterpret_cast<const char*>(key.data()), key.size() };
 }
 
 } // namespace remc::crypto

@@ -1,8 +1,8 @@
 #ifndef REMC_SERVER_H_
 #define REMC_SERVER_H_
 
+#include "net/packet.h"
 #include "session_base.h"
-#include "net/common.h"
 #include "include/ring_buffer.h"
 
 #include <atomic>
@@ -11,8 +11,22 @@
 
 namespace remc::net {
 
+namespace global {
+
+// seconds
+static constexpr std::time_t WORKER_HEARTBEAT_TIMEOUT = remc::net::global::TIMESTAMP_LIMIT;
+static constexpr std::time_t WORKER_HEARTBEAT_PERIOD  = 5;
+// max client count per worker
+static constexpr std::size_t WORKER_MAX_CLIENT_COUNT  = 4096;
+
+} // namespace global
+
 class Worker;
 class SessionServer;
+
+// extern instance
+// src: server.cpp
+extern template class SessionBase<SessionServer>;
 
 // read callback type concept
 template <typename Type>
@@ -20,7 +34,7 @@ concept ReadCallbackType = std::invocable<Type&&, std::vector<std::byte>, std::s
 
 // ===== SessionServer =====
 //
-class SessionServer final : public SessionBase<SessionServer> {
+class SessionServer : public SessionBase<SessionServer> {
 public:
    explicit SessionServer(tcp::socket&& socket, Worker* parent_worker) :
       SessionBase(std::move(socket)),
@@ -58,8 +72,8 @@ private:
    template<ReadCallbackType CallbackType, typename WorkerType>
    void ReadImpl(CallbackType&& task, WorkerType wptr) {
       auto buffer = std::make_shared<std::vector<std::byte>>(global::TCP_TOTAL_PACKET_SIZE);
+      
       reset_signal_.emplace();
-
       // async read
       socket_.async_read_some(asio::buffer(*buffer),
       // bind to cancellation slot for future callbacks reset
@@ -118,20 +132,16 @@ public:
       });
    }
 
-   auto SessionListBegin()        const noexcept { return session_list_.begin(); }
+   auto SessionListBegin() const noexcept { return session_list_.begin(); }
+   auto SessionListEnd()   const noexcept { return session_list_.end();   }
 
-   auto SessionListEnd()          const noexcept { return session_list_.end();   }
+   auto GetSessionById(size_t id) const noexcept { return session_list_.at(id); }
+   auto GetClientCount()          const noexcept { return session_list_.size(); }
 
-   auto GetSessionById(size_t id) const noexcept { return session_list_.at(id);  }
-
-   auto GetClientCount()          const noexcept { return session_list_.size();  }
-
-   void AddClient(tcp::socket&& socket);
-
+   void CreateSession(tcp::socket&& socket);
    void RemoveSession(std::size_t id);
 
    void Run();
-
    void Stop();
 
 private:
@@ -167,11 +177,9 @@ public:
 
 public:
    void Run();
-
    void Stop();
 
    auto BeginList() const noexcept { return worker_list_.begin(); }
-
    auto EndList()   const noexcept { return worker_list_.end();   }
 
    bool IsRunning() const noexcept { return thread_flag_;         }
@@ -190,13 +198,9 @@ private:
    // worker list
    std::vector<std::shared_ptr<Worker>>
                       worker_list_;
-   // thread pool ref
+   // external tpool ref
    asio::thread_pool& thread_pool_;
 };
-
-// extern instance here
-// src: serssion_base.cpp
-extern template class SessionBase<SessionServer>;
 
 } // namespace remc::net
 

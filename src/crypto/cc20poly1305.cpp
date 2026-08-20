@@ -107,7 +107,7 @@ void FSChaCha20Poly1305::NextPacket() noexcept {
    m_aead.SetKey(std::span{one_block}.first(KEYLEN));
    // Wipe the generated keystream (a copy remains inside m_aead, which will be cleaned up
    // once it cycles again, or is destroyed).
-   utils::ZeroMemory(one_block, sizeof(one_block));
+   utils::SecZeroMemory(one_block, sizeof(one_block));
    // Update counters.
    m_packet_counter = 0, ++m_rekey_counter;
 }

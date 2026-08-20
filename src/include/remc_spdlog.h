@@ -1,7 +1,8 @@
-#ifndef SPDLOG_WRAPPER_H_
-#define SPDLOG_WRAPPER_H_
+#ifndef REMC_SPDLOG_WRAPPER_H_
+#define REMC_SPDLOG_WRAPPER_H_
 
 #include "spdlog/common.h"
+
 #include <iostream>
 #include <string_view>
 
@@ -15,12 +16,13 @@ constexpr const char* const DEFAULT_GLOBAL_LOGGER_NAME = "global";
 constexpr const char* const DEFAULT_LOGFILE_PATH       = "logs/log.txt";
 
 inline void InitFileConsoleLogger(
-   std::string_view          logger_name, 
-   std::string_view          logfile_path,
+   const std::string&        logger_name, 
+   const std::string&        logfile_path,
    spdlog::level::level_enum log_level = spdlog::level::debug) 
 {
    auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
-      logfile_path.data(), 1024 * 1024 * 10, 1
+      logfile_path, 
+      1024 * 1024 * 10, 1
    );
    file_sink->set_level(spdlog::level::info);
 
@@ -28,7 +30,8 @@ inline void InitFileConsoleLogger(
    console_sink->set_level(log_level);
 
    auto logger = std::make_shared<spdlog::logger>(
-      logger_name.data(), spdlog::sinks_init_list{file_sink, console_sink}
+      logger_name.data(), 
+      spdlog::sinks_init_list{file_sink, console_sink}
    );
    logger->set_pattern("[%Y-%m-%d::%H-%M-%S](%^%l%$) %v");
    logger->set_level(log_level);
@@ -39,26 +42,58 @@ inline void InitFileConsoleLogger(
 
 template<typename... Args>
 inline void Log(
-   std::string_view name, 
+   std::string_view          name, 
    spdlog::level::level_enum level, 
-   std::string_view fmt,  
-   Args&&... args) 
+   spdlog::string_view_t     fmt, 
+   Args&&...                 args) 
 {
    auto logger = spdlog::get(name.data());
-   if (logger)
-      // using spdlog runtime string
+   if (logger) {
+#if SPDLOG_VER_MAJOR >= 1 && SPDLOG_VER_MINOR >= 11
       logger->log(level, spdlog::fmt_lib::runtime(fmt), std::forward<Args>(args)...);
+#else
+      // maybe error here
+      logger->log(level, fmt, std::forward<Args>(args)...);
+#endif
+   }
    else std::cerr << std::format("logger <{}> not found!\n", name);
+}
+
+template<typename... Args>
+inline void GlobalLog(
+   spdlog::level::level_enum level, 
+   spdlog::string_view_t     fmt,  
+   Args&&...                 args) 
+{
+   static spdlog::logger* logger = [](){
+      auto ptr_logger = spdlog::get(DEFAULT_GLOBAL_LOGGER_NAME);
+      if (!ptr_logger) {
+         InitFileConsoleLogger(DEFAULT_GLOBAL_LOGGER_NAME, 
+                               DEFAULT_LOGFILE_PATH);
+         ptr_logger = spdlog::get(DEFAULT_GLOBAL_LOGGER_NAME);
+      }
+      return ptr_logger ? ptr_logger.get() : nullptr;
+   }();
+
+   if (logger) [[likely]] {
+#if SPDLOG_VER_MAJOR >= 1 && SPDLOG_VER_MINOR >= 11
+      logger->log(level, spdlog::fmt_lib::runtime(fmt), std::forward<Args>(args)...);
+#else
+      // maybe error here
+      logger->log(level, fmt, std::forward<Args>(args)...);
+#endif
+   }
+   else std::cerr << "global logger not found or not init!\n";
 }
 
 } // namespace remc
 
-#define GlobalLogInfo(...)    remc::Log(remc::DEFAULT_GLOBAL_LOGGER_NAME, spdlog::level::info,   __VA_ARGS__)
+#define GlobalLogInfo(...)    remc::GlobalLog(spdlog::level::info,  __VA_ARGS__)
 
-#define GlobalLogWarning(...) remc::Log(remc::DEFAULT_GLOBAL_LOGGER_NAME, spdlog::level::warn,   __VA_ARGS__)
+#define GlobalLogWarning(...) remc::GlobalLog(spdlog::level::warn,  __VA_ARGS__)
 
-#define GlobalLogError(...)   remc::Log(remc::DEFAULT_GLOBAL_LOGGER_NAME, spdlog::level::err,    __VA_ARGS__)
+#define GlobalLogError(...)   remc::GlobalLog(spdlog::level::err,   __VA_ARGS__)
 
-#define GlobalLogDebug(...)   remc::Log(remc::DEFAULT_GLOBAL_LOGGER_NAME, spdlog::level::debug,  __VA_ARGS__)
+#define GlobalLogDebug(...)   remc::GlobalLog(spdlog::level::debug, __VA_ARGS__)
 
-#endif // SPDLOG_WRAPPER_H_
+#endif // REMC_SPDLOG_WRAPPER_H_

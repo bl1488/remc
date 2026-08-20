@@ -1,15 +1,17 @@
 #include "include/remc_spdlog.h"
 #include "net/server.h"
+#include "crypto/secure_key.h"
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
-   // init global logger
-   remc::InitFileConsoleLogger(remc::DEFAULT_GLOBAL_LOGGER_NAME, 
-                               remc::DEFAULT_LOGFILE_PATH);
+   std::setlocale(LC_ALL, "");
+
    // init sodium
    if (::sodium_init() < 0) {
       GlobalLogError("sodium init error");
       return 0;
    }
+
+#if 0
 
    asio::thread_pool pool(1);
    remc::net::Server server(12345, pool);
@@ -37,6 +39,8 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
    server.Stop();
 
    pool.join();
+
+#endif
 
    return 0;
 }

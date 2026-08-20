@@ -7,10 +7,9 @@
 #if REMC_PLATFORM_LINUX
 #  include <fcntl.h>
 #  include <cerrno>
-#elif REMC_PALTFORM_WIN32
+#elif REMC_PLATFORM_WIN32
 #  include <winsock2.h>
 #  include <ws2tcpip.h>
-#  pragma comment(lib, "ws2_32.lib")
 #endif
 
 namespace remc::net {

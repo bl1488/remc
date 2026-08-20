@@ -1,13 +1,16 @@
 #include "client.h"
+#include "packet.h"
 #include "include/remc_spdlog.h"
-#include "net/common.h"
 
 namespace remc::net {
 
+// instance
+template class SessionBase<SessionClient>;
+   
 //
 // SessionClient
 //
-bool SessionClient::Write(uint32_t flags, std::string_view payload, WriteCallbackType cb) {
+bool SessionClient::Write(Packet::Flags flags, std::string_view payload, WriteCallbackType cb) {
    if (payload.size() > global::TCP_PAYLOAD_SIZE_MAX)
       return false;
 
@@ -17,7 +20,7 @@ bool SessionClient::Write(uint32_t flags, std::string_view payload, WriteCallbac
    return Write(flags, std::move(vec), std::move(cb));
 }
 
-bool SessionClient::Write(uint32_t flags, std::vector<std::byte> payload, WriteCallbackType cb) {
+bool SessionClient::Write(Packet::Flags flags, std::vector<std::byte> payload, WriteCallbackType cb) {
    // invalid payload data
    // not slicing and return false
    if (payload.size() > global::TCP_PAYLOAD_SIZE_MAX)
@@ -38,7 +41,7 @@ bool SessionClient::Write(uint32_t flags, std::vector<std::byte> payload, WriteC
       );
       if (!packet) {
          auto& err = packet.error();
-         GlobalLogDebug("packet creation failed: {}:{}", err.CodeAsString(), err.Message());
+         GlobalLogDebug("packet creation failed: {}:{}", err.GetCodeAsString(), err.Message());
          return;
       }
       // set callback on this message_id
@@ -62,11 +65,10 @@ void SessionClient::WriteImpl(WriteCallbackType cb) {
    }
    auto buffer = std::make_shared<std::vector<std::byte>>(opt.value());
 
+   // async write
    asio::async_write(socket_, asio::buffer(*buffer), 
    [self = this->shared_from_this(), cb = std::move(cb)] (const asio::error_code& ec, [[maybe_unused]] size_t length) {
       if (!ec) {
-         // increment common counter
-         ++self->message_counter_;
          // refresh timestamp
          self->last_timestamp_ = std::time(nullptr);
          // remove message
@@ -95,20 +97,27 @@ void SessionClient::Read() {
       // refresh timestamp
       self->last_timestamp_ = std::time(nullptr);
 
-      // parse packet and retrieve the message_id to invoke 
-      // the callback, if one exists
-      auto p = ReadPacket(*buffer, self->message_counter_, self->keys_.GetSharedKey());
-      if (p) {
-         auto packet = std::make_shared<Packet>(p.value());
-         if (self->task_queue_.contains(p->header.message_id)) {
-            asio::post(self->pool_, 
-            [self = self->shared_from_this(), packet, cb = std::move(self->task_queue_[packet->header.message_id])] {
-                  cb(packet, self);
-            });
-         }               
-      }
-      else GlobalLogDebug("ReadPacket() failed");
-
+      // post to thread pool
+      asio::post(self->pool_, [self, buffer = std::move(buffer)] {
+         // parse packet and retrieve the message_id to invoke the callback, if one exists
+         auto packet = ReadPacket(*buffer, self->message_counter_, self->keys_.GetSharedKey());
+         if (packet) {
+            // find with iterator
+            auto iter = self->task_queue_.find(packet->header.message_id);
+            if (iter != self->task_queue_.end()) {
+               // callback can throw an exception so we erase/move it before
+               auto callback = std::move(iter->second);
+               self->task_queue_.erase(iter);
+               // user callback call
+               callback(std::move(packet.value()), self);
+            }
+            // else: no callback for this message_id
+         }
+         else {
+            auto& err = packet.error();
+            GlobalLogDebug("ReadPacket() failed with: {} ({})", err.Message(), err.GetCodeAsInt());
+         }
+      });
       self->Read();
    });
 }

@@ -1,14 +1,13 @@
 #include "include/remc_spdlog.h"
 #include "include/remc_utils.h"
 #include "net/client.h"
-#include "net/common.h"
+#include "net/packet.h"
 
 #include <exception>
 
 int main(int argc, char** argv) {
-   // init global logger
-   remc::InitFileConsoleLogger(remc::DEFAULT_GLOBAL_LOGGER_NAME, 
-                               remc::DEFAULT_LOGFILE_PATH);
+   std::setlocale(LC_ALL, "");
+   
    // init sodium
    if (::sodium_init() < 0) {
       GlobalLogError("sodium init error");
@@ -21,7 +20,7 @@ int main(int argc, char** argv) {
    if (argc > 1) {
       server_addr = argv[1];
       if (argc > 2)
-         port = std::atoi(argv[2]);
+         port = std::stoi(argv[2]);
    }
 
    // external pool for client
@@ -41,20 +40,18 @@ int main(int argc, char** argv) {
    session->Read();
    
    // handshake
-   // send public key
    session->Write(
-      remc::net::Packet::FLAG_TYPE_HANDSHAKE, 
+      remc::net::Packet::Handshake, 
       std::string(session->KeysInfo().GetKeyAsString(session->KeysInfo().GetPublicKey())),
       // callback
       // getting server public key here
-      [](std::shared_ptr<remc::net::Packet> packet, std::shared_ptr<remc::net::SessionClient> session) {
-         if (packet->header.message_size == 32) {
-            bool flag = session->KeysInfo().ComputeSharedKey({ packet->payload.data(), packet->header.message_size });
-            if (!flag)
+      [](remc::net::Packet packet, std::shared_ptr<remc::net::SessionClient> session) {
+         if (packet.header.message_size == 32) {
+            if (!session->KeysInfo().ComputeSharedKey({ packet.payload.data(), packet.header.message_size }))
                  GlobalLogError("error computing shared key");
             else GlobalLogInfo("shared key successfully computed");
          }
-         else GlobalLogError("cant compute shared_key ({} != 32)", packet->header.message_size);
+         else GlobalLogError("cant compute shared key ({} != 32)", packet.header.message_size);
       }
    );
 
@@ -68,22 +65,22 @@ int main(int argc, char** argv) {
          break;
       }
       else if (buffer == "1") {
-         session->Write(remc::net::Packet::FLAG_NO_CRYPTO, 
+         session->Write(remc::net::Packet::NoCrypto, 
             std::format("no crypto message: {}", std::to_string(remc::utils::Random())));
       }
       else if (buffer == "2") {
          session->Write(
-            remc::net::Packet::FLAG_TEST_MESSAGE, 
+            remc::net::Packet::TestMessage, 
             std::format("hello world: {}", remc::utils::Random()),
             // callback
-            [](std::shared_ptr<remc::net::Packet> packet, [[maybe_unused]] std::shared_ptr<remc::net::SessionClient> session) {
-               std::cout << "version.........: " << packet->header.version      << '\n'
-                         << "flags...........: " << packet->header.flags        << '\n'
-                         << "timestamp.......: " << packet->header.timestamp    << '\n'
-                         << "message-id......: " << packet->header.message_id   << '\n'
-                         << "message-size....: " << packet->header.message_size << '\n'
-                         << "nonce...........: " << packet->header.nonce        << '\n';
-               std::cout << std::format("message.........: '{}'\n", packet->GetPayloadAsString());
+            [](remc::net::Packet packet, [[maybe_unused]] std::shared_ptr<remc::net::SessionClient> session) {
+               std::cout << "version.........: " << packet.header.version      << '\n'
+                         << "flags...........: " << packet.header.flags        << '\n'
+                         << "timestamp.......: " << packet.header.timestamp    << '\n'
+                         << "message-id......: " << packet.header.message_id   << '\n'
+                         << "message-size....: " << packet.header.message_size << '\n'
+                         << "nonce...........: " << packet.header.nonce        << '\n';
+               std::cout << std::format("message.........: '{}'\n", packet.GetPayloadAsString());
             }
          );
       }
@@ -94,7 +91,7 @@ int main(int argc, char** argv) {
             << session->GetMessageCounter()                                              << '\n';
       }
       else {
-         if (!session->Write(0, buffer))
+         if (!session->Write(remc::net::Packet::NoFlags, buffer))
             GlobalLogWarning("Write failed");
       }
    }

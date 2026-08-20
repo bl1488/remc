@@ -14,9 +14,8 @@ namespace remc::containers {
 
 // ===== RingBuffer =====
 //
-// not lock-free version.
+// non lock-free version.
 // using in asio::post variants
-//
 class RingBuffer {
 public:
    // it might throw an exception! be careful
@@ -46,7 +45,7 @@ public:
    ~RingBuffer() = default;
 
 public:
-   template<typename PrefixSizeType = uint16_t> requires std::integral<PrefixSizeType>
+   template<std::integral PrefixSizeType = uint16_t>
    bool Push(std::span<const std::byte> data) {
       if (data.empty() || FreeSpace() < data.size() + sizeof(PrefixSizeType) || 
           data.size() > std::numeric_limits<PrefixSizeType>::max()) 
@@ -84,7 +83,7 @@ public:
    // returning only std::vector cuz async operations. 
    // i cannot guarantee the message lifetime when using std::span 
    // if you have such a guarantee you can add an overload for std::span
-   template<typename PrefixSizeType = uint16_t> requires std::integral<PrefixSizeType>
+   template<std::integral PrefixSizeType = uint16_t>
    std::optional<std::vector<std::byte>> Pop() {
       if (IsEmpty())
          return std::nullopt;
@@ -129,14 +128,13 @@ public:
 
    void Clear() noexcept { head_ = tail_ = 0; }
 
-   bool        IsEmpty() const noexcept { return head_ == tail_; }
+   bool IsEmpty() const noexcept { return head_ == tail_; }
    
-   std::size_t GetTail() const noexcept { return tail_;          }
+   std::size_t GetTail() const noexcept { return tail_; }
 
-   std::size_t GetHead() const noexcept { return head_;          }
+   std::size_t GetHead() const noexcept { return head_; }
 
-   const std::vector<std::byte>& GetBuffer() 
-      const noexcept { return buffer_; }
+   const std::vector<std::byte>& GetBuffer() const noexcept { return buffer_; }
 
    std::size_t GetCapacity() 
       const noexcept { return buffer_.empty() ? 0 : buffer_.size() - 1; }

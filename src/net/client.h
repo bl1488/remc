@@ -1,11 +1,10 @@
 #ifndef REMC_CLIENT_H_
 #define REMC_CLIENT_H_
 
-#include "net/common.h"
 #include "session_base.h"
+#include "packet.h"
 #include "include/ring_buffer.h"
 
-#include <concepts>
 #include <functional>
 
 #include <asio/executor_work_guard.hpp>
@@ -14,13 +13,18 @@
 
 namespace remc::net {
 
+class SessionClient;
+
+// extern instance
+// src: server.cpp
+extern template class SessionBase<SessionClient>;
+   
 // ===== SessionClient =====
 //
-class SessionClient final : public SessionBase<SessionClient> {
+class SessionClient : public SessionBase<SessionClient> {
 public:
    // signature of callback function to be specified
-   using WriteCallbackType = std::function<void(std::shared_ptr<Packet>, 
-                                                std::shared_ptr<SessionClient>)>;
+   using WriteCallbackType = std::function<void(Packet, std::shared_ptr<SessionClient>)>;
 public:
    SessionClient(tcp::socket&& socket, asio::thread_pool& pool) : 
       SessionBase(std::move(socket)),
@@ -28,9 +32,8 @@ public:
       pool_(pool) {}
 
 public:
-   bool Write(uint32_t flags, std::vector<std::byte> payload, WriteCallbackType cb = nullptr);
-
-   bool Write(uint32_t flags, std::string_view       payload, WriteCallbackType cb = nullptr);
+   bool Write(Packet::Flags flags, std::vector<std::byte> payload, WriteCallbackType cb = nullptr);
+   bool Write(Packet::Flags flags, std::string_view       payload, WriteCallbackType cb = nullptr);
 
    void Read();
 
@@ -91,6 +94,7 @@ protected:
 
 // ===== ExternalClient =====
 //
+// work on external io_context
 class ExternalClient : public ClientBase<ExternalClient> {
 public:
    ExternalClient(asio::io_context& external_io, asio::thread_pool& external_pool) 
@@ -105,6 +109,7 @@ private:
 
 // ===== InternalClient =====
 //
+// work on internal io_context
 class InternalClient : public ClientBase<InternalClient> {
 public:
    InternalClient(asio::thread_pool& external_pool) 
@@ -125,10 +130,6 @@ private:
    asio::executor_work_guard<asio::io_context::executor_type>
                     work_guard_;
 };
-
-// instance here
-// src: session_base.cpp
-extern template class SessionBase<SessionClient>;
 
 } // namespace remc::net
 

@@ -6,6 +6,7 @@
 
 #include <chrono>
 #include <cassert>
+#include <concepts>
 #include <cstring>
 #include <span>
 #include <functional>
@@ -19,7 +20,7 @@ namespace remc::utils {
 //
 template<typename TimeType = std::chrono::nanoseconds, typename ExprType, typename... ArgsType> 
    requires std::invocable<ExprType&&, ArgsType&&...>
-TimeType ComputeExprTime(ExprType&& expr, ArgsType&&... args) 
+std::size_t ComputeExprTime(ExprType&& expr, ArgsType&&... args) 
    noexcept(std::is_nothrow_invocable_v<ExprType&&, ArgsType&&...>) 
 {
    auto a = std::chrono::high_resolution_clock::now();
@@ -34,14 +35,12 @@ void Sleep(std::size_t delay) noexcept {
    std::this_thread::sleep_for(TimeType(delay));
 }
 
-template<typename Type>
-void ZeroMemory(Type* ptr, std::size_t n) {
-#if REMC_PALTFORM_WIN32
+[[maybe_unused]] static void SecZeroMemory(void* ptr, std::size_t n) {
+#if REMC_PLATFORM_WIN32
    ::SecureZeroMemory(ptr, n);
-#elif REMC_PLATFORM_LINUX
-   assert(ptr && n);
+#else
+   assert(ptr);
    std::memset(ptr, 0, n);
-   // DSE
    asm volatile("" : : "r"(ptr) : "memory");
 #endif
 }
@@ -63,21 +62,21 @@ std::string BufferToHexString(std::span<const Type> buffer, const char* sep = ""
 //
 // LE
 //
-template<typename Type> requires std::integral<Type>
+template<std::integral Type>
 constexpr Type ValueToLE(Type value) noexcept {
    if constexpr (std::endian::native == std::endian::little)
         return value;
    else return std::byteswap(value);
 }
 
-template<typename Type, typename PtrType = const uint8_t*> requires std::integral<Type>
+template<std::integral Type, typename PtrType = const uint8_t*>
 constexpr Type ReadLE(PtrType ptr) noexcept {
    Type a;
    std::memcpy(&a, ptr, sizeof(Type));
    return ValueToLE(a);
 }
 
-template<typename Type, typename PtrType = uint8_t*> requires std::integral<Type>
+template<std::integral Type, typename PtrType = uint8_t*>
 constexpr void WriteLE(PtrType ptr, Type value) noexcept {
    value = ValueToLE(value);
    std::memcpy(ptr, &value, sizeof(Type));
@@ -86,21 +85,21 @@ constexpr void WriteLE(PtrType ptr, Type value) noexcept {
 //
 // BE
 //
-template<typename Type> requires std::integral<Type>
+template<std::integral Type>
 constexpr Type ValueToBE(Type value) noexcept {
    if constexpr (std::endian::native == std::endian::big)
         return value;
    else return std::byteswap(value);
 }
 
-template<typename Type, typename PtrType = uint8_t*> requires std::integral<Type>
+template<std::integral Type, typename PtrType = uint8_t*>
 constexpr Type ReadBE(PtrType ptr) noexcept {
    Type a;
    std::memcpy(&a, ptr, sizeof(Type));
    return ValueToBE(a);
 }
 
-template<typename Type, typename PtrType = uint8_t*> requires std::integral<Type>
+template<std::integral Type, typename PtrType = uint8_t*>
 constexpr void WriteBE(PtrType ptr, Type value) noexcept {
    value = ValueToBE(value);
    std::memcpy(ptr, &value, sizeof(Type));
@@ -109,17 +108,17 @@ constexpr void WriteBE(PtrType ptr, Type value) noexcept {
 //
 // Random
 //
-template<typename Type = std::size_t> requires std::integral<Type>
+template<std::integral Type = std::size_t>
 Type Random() noexcept {
    static thread_local Xoshiro256Generator gen;
    return static_cast<Type>(gen());
 }
 
-template<typename Type = std::size_t> requires std::integral<Type>
+template<std::integral Type = std::size_t>
 Type Random(Type from, Type to) noexcept {
-   assert(to > from);
+   assert(to >= from);
    static thread_local Xoshiro256Generator gen;
-   return std::uniform_int_distribution<Type>(from, to - 1)(gen);
+   return std::uniform_int_distribution<Type>(from, to)(gen);
 }
 
 } // namespace remc::utils

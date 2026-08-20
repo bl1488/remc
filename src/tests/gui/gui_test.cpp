@@ -2,8 +2,6 @@
 #include "include/remc_spdlog.h"
 
 #include <QApplication>
-#include <qapplication.h>
-#include <qtextedit.h>
 
 int main(int argc, char** argv) {
    // init logger
