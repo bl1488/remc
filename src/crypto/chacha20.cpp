@@ -308,7 +308,7 @@ void ChaCha20::Crypt(std::span<const std::byte> input, std::span<std::byte> outp
 void ChaCha20::SetKey(std::span<const std::byte> key) noexcept {
    m_aligned.SetKey(key);
    m_bufleft = 0;
-   utils::ZeroMemory(m_buffer.data(), m_buffer.size());
+   utils::SecZeroMemory(m_buffer.data(), m_buffer.size());
 }
 
 } // namespace remc::crypto

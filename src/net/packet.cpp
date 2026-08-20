@@ -1,8 +1,5 @@
-#include "session_base.h"
+#include "packet.h"
 #include "crypto/cc20poly1305.h"
-#include "net/common.h"
-#include "server.h"
-#include "client.h"
 
 #include <bitsery/serializer.h>
 #include <bitsery/bitsery.h>
@@ -14,7 +11,23 @@
 namespace remc::net {
 
 //
-// bitsery instances
+// Packet
+//
+std::span<const std::byte> Packet::GetTag() const noexcept {
+   if (payload.size() > 16)
+      return { payload.data() + payload.size() - 16, 16 };
+   return {};
+}
+
+std::string Packet::GetPayloadAsString() const {
+   if (payload.size() > 16)
+      return std::string(reinterpret_cast<const char*>(payload.data()), 
+                         payload.size() - 16);
+   return {};
+}
+
+//
+// bitsery
 // 
 template<typename S>
 void serialize(S& s, remc::net::Packet::Header& header) {
@@ -50,7 +63,7 @@ std::expected<std::vector<std::byte>, PacketError> CreatePacket(
    // check arguments valid
    if (payload.size() > global::TCP_PAYLOAD_SIZE_MAX || shared_key.empty()) {
       return std::unexpected(PacketError(
-         PacketError::Code::ERROR_INVALID_ARGUMENTS,
+         PacketError::ErrorCode::InvalidArguments,
          std::format("invalid arguments: (size:{}) (key:{})", payload.size(), reinterpret_cast<const void*>(shared_key.data()))
       ));
    }
@@ -65,7 +78,7 @@ std::expected<std::vector<std::byte>, PacketError> CreatePacket(
    packet.header.message_id   = message_id;
    packet.header.nonce        = nonce;
    packet.header.message_size = static_cast<uint32_t>(
-      flags & Packet::Flags::FLAG_NO_CRYPTO ? payload.size() : payload.size() + 16);
+      flags & Packet::Flags::NoCrypto ? payload.size() : payload.size() + 16);
 
    packet.payload.resize(packet.header.message_size);
 
@@ -73,7 +86,7 @@ std::expected<std::vector<std::byte>, PacketError> CreatePacket(
    BufferType ser_header;
    bitsery::quickSerialization<OutAdapter>(ser_header, packet.header);
 
-   if (!(flags & Packet::Flags::FLAG_NO_CRYPTO)) {
+   if (!(flags & Packet::Flags::NoCrypto)) {
       crypto::AEADChaCha20Poly1305 cc20(const_cast<std::byte*>(shared_key.data()), shared_key.size());
       cc20.Encrypt(
          payload,
@@ -103,7 +116,7 @@ std::expected<Packet, PacketError> ReadPacket(
    // check arguments valid
    if (shared_key.empty()) {
       return std::unexpected(PacketError(
-         PacketError::Code::ERROR_INVALID_ARGUMENTS,
+         PacketError::ErrorCode::InvalidArguments,
          std::format("invalid arguments: (key:{})", reinterpret_cast<const void*>(shared_key.data()))
       ));
    }
@@ -117,7 +130,7 @@ std::expected<Packet, PacketError> ReadPacket(
    auto state = bitsery::quickDeserialization<InAdapter>({ buffer.begin(), buffer.size() }, packet);
    if (state.first != bitsery::ReaderError::NoError) {
       return std::unexpected(PacketError(
-         PacketError::Code::ERROR_INVALID_SERIALIZATION,
+         PacketError::ErrorCode::InvalidSerialization,
          std::format("deserialization error: {}", static_cast<int>(state.first)).c_str()
       ));
    }
@@ -126,7 +139,7 @@ std::expected<Packet, PacketError> ReadPacket(
    bitsery::quickSerialization<OutAdapter>(ser_header, packet.header);
    
    // decrypt payload?
-   if (!(packet.header.flags & Packet::FLAG_NO_CRYPTO)) {
+   if (!(packet.header.flags & Packet::NoCrypto)) {
       std::vector<std::byte> payload;
       payload.resize(packet.header.message_size - 16);
 
@@ -137,7 +150,7 @@ std::expected<Packet, PacketError> ReadPacket(
                         payload)) 
       {
          return std::unexpected(PacketError(
-            PacketError::Code::ERROR_INVALID_TAG,
+            PacketError::ErrorCode::InvalidTag,
             "AEAD mismatch"
          ));
       }
@@ -152,23 +165,19 @@ std::expected<Packet, PacketError> ReadPacket(
    std::time_t now = std::time(nullptr);
    if (now - packet.header.timestamp > global::TIMESTAMP_LIMIT) {
       return std::unexpected(PacketError(
-         PacketError::Code::ERROR_INVALID_TIMESTAMP,
+         PacketError::ErrorCode::InvalidTimestamp,
          std::format("invalid packet timestamp ({})", packet.header.timestamp)
       ));
    }
    // message size
    if (packet.header.message_size != packet.payload.size()) {
       return std::unexpected(PacketError(
-         PacketError::Code::ERROR_INVALID_TIMESTAMP,
+         PacketError::ErrorCode::InvalidMessageLength,
          std::format("message size mismatch: {}:{}", packet.header.message_size, packet.payload.size())
       ));
    }
 
    return packet;
 }
-
-// instance Server/Client here
-template class SessionBase<SessionServer>;
-template class SessionBase<SessionClient>;
 
 } // namespace remc::net

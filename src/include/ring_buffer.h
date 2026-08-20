@@ -14,9 +14,8 @@ namespace remc::containers {
 
 // ===== RingBuffer =====
 //
-// not lock-free version.
+// non lock-free version.
 // using in asio::post variants
-//
 class RingBuffer {
 public:
    // it might throw an exception! be careful
@@ -129,14 +128,13 @@ public:
 
    void Clear() noexcept { head_ = tail_ = 0; }
 
-   bool        IsEmpty() const noexcept { return head_ == tail_; }
+   bool IsEmpty() const noexcept { return head_ == tail_; }
    
-   std::size_t GetTail() const noexcept { return tail_;          }
+   std::size_t GetTail() const noexcept { return tail_; }
 
-   std::size_t GetHead() const noexcept { return head_;          }
+   std::size_t GetHead() const noexcept { return head_; }
 
-   const std::vector<std::byte>& GetBuffer() 
-      const noexcept { return buffer_; }
+   const std::vector<std::byte>& GetBuffer() const noexcept { return buffer_; }
 
    std::size_t GetCapacity() 
       const noexcept { return buffer_.empty() ? 0 : buffer_.size() - 1; }

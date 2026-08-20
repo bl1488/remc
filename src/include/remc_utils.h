@@ -20,7 +20,7 @@ namespace remc::utils {
 //
 template<typename TimeType = std::chrono::nanoseconds, typename ExprType, typename... ArgsType> 
    requires std::invocable<ExprType&&, ArgsType&&...>
-TimeType ComputeExprTime(ExprType&& expr, ArgsType&&... args) 
+std::size_t ComputeExprTime(ExprType&& expr, ArgsType&&... args) 
    noexcept(std::is_nothrow_invocable_v<ExprType&&, ArgsType&&...>) 
 {
    auto a = std::chrono::high_resolution_clock::now();
@@ -35,13 +35,12 @@ void Sleep(std::size_t delay) noexcept {
    std::this_thread::sleep_for(TimeType(delay));
 }
 
-inline void ZeroMemory(void* ptr, std::size_t n) {
-   assert(ptr && n);
-#if REMC_PALTFORM_WIN32
+[[maybe_unused]] static void SecZeroMemory(void* ptr, std::size_t n) {
+#if REMC_PLATFORM_WIN32
    ::SecureZeroMemory(ptr, n);
-#elif REMC_PLATFORM_LINUX
+#else
+   assert(ptr);
    std::memset(ptr, 0, n);
-   // DSE
    asm volatile("" : : "r"(ptr) : "memory");
 #endif
 }

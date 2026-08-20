@@ -42,7 +42,7 @@ public:
    ChaCha20Aligned(std::span<const std::byte> key) noexcept { SetKey(key); }
 
    // Destructor to clean up private memory
-   ~ChaCha20Aligned() { remc::utils::ZeroMemory(input, sizeof(input)); }
+   ~ChaCha20Aligned() { remc::utils::SecZeroMemory(input, sizeof(input)); }
 
 public:
    // Set 32-byte key, and seek to nonce 0 and block position 0
@@ -82,7 +82,7 @@ public:
       m_aligned({ reinterpret_cast<const std::byte*>(data), size }) {}
    
    // Destructor to clean up private memory
-   ~ChaCha20() { remc::utils::ZeroMemory(m_buffer.data(), m_buffer.size()); }
+   ~ChaCha20() { remc::utils::SecZeroMemory(m_buffer.data(), m_buffer.size()); }
 
 public:
    // Set 32-byte key, and seek to nonce 0 and block position 0

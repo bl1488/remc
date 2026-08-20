@@ -1,7 +1,11 @@
 #include "server.h"
+#include "packet.h"
 #include "include/remc_spdlog.h"
 
 namespace remc::net {
+
+// instance
+template class SessionBase<SessionServer>;
 
 // default read callback.
 // todo: 
@@ -17,19 +21,19 @@ void DefaultReadCallback(std::vector<std::byte> buffer, std::shared_ptr<SessionS
 
    auto& packet = p.value();
 
-   if (packet.header.flags == Packet::FLAG_TYPE_HANDSHAKE) {
+   if (packet.header.flags == Packet::Flags::Handshake) {
       GlobalLogDebug("flag: FLAG_TYPE_HANDSHAKE");
       // send my public to client
-      session->Write(Packet::FLAG_TYPE_HANDSHAKE, 
+      session->Write(Packet::Flags::Handshake, 
                      packet.header.message_id, 
                      std::string(session->KeysInfo().GetKeyAsString(session->KeysInfo().GetPublicKey())) );
       // compute shared key
       if (!session->KeysInfo().ComputeSharedKey(packet.payload))
-         GlobalLogError("cb: error computing shared key");
+         GlobalLogError("error computing shared key");
    }
-   else if (packet.header.flags == Packet::FLAG_TEST_MESSAGE) {
+   else if (packet.header.flags == Packet::Flags::TestMessage) {
       GlobalLogDebug("flag: FLAG_TYPE_HANDSHAKE");
-      session->Write(Packet::FLAG_TEST_MESSAGE,
+      session->Write(Packet::Flags::TestMessage,
                      packet.header.message_id,
                      std::string("asnwer from server ") + std::to_string(session->GetMessageCounter()));
    }
@@ -41,7 +45,6 @@ void DefaultReadCallback(std::vector<std::byte> buffer, std::shared_ptr<SessionS
              << "message-id......: " << packet.header.message_id   << '\n'
              << "message-size....: " << packet.header.message_size << '\n'
              << "nonce...........: " << packet.header.nonce        << '\n';
-
    auto payload = packet.GetPayloadAsString();
    std::cout << std::format("message.........: '{}' : {}\n", payload.data(), payload.size()) << '\n';
 #endif
@@ -50,7 +53,7 @@ void DefaultReadCallback(std::vector<std::byte> buffer, std::shared_ptr<SessionS
 //
 // Worker
 //
-void Worker::AddClient(tcp::socket&& socket) {
+void Worker::CreateSession(tcp::socket&& socket) {
    asio::post(io_, [self = shared_from_this(), socket = std::move(socket)] mutable {
       // is enough space for new session?
       if (self->session_list_.size() + 1 > global::WORKER_MAX_CLIENT_COUNT)
@@ -80,7 +83,7 @@ void Worker::RemoveSession(std::size_t id) {
       if (self->session_list_.contains(id)) {
          self->session_list_[id]->Close();
          self->session_list_.erase(id);
-         GlobalLogInfo("session <{}> dead", id);
+         GlobalLogInfo("session <{}> was removed", id);
       }
    });
 }
@@ -112,6 +115,7 @@ void Worker::Stop() {
 
 void Worker::Heartbeat() {
    auto timer = std::make_shared<asio::steady_timer>(io_, std::chrono::seconds(global::WORKER_HEARTBEAT_PERIOD));
+   // async wait
    timer->async_wait([self = shared_from_this(), timer](const asio::error_code& ec) {
       if (!ec) {
          std::vector<std::shared_ptr<SessionServer>> vec;
@@ -175,7 +179,7 @@ bool SessionServer::Write(uint32_t flags, uint64_t message_id, std::vector<std::
       );
       if (!packet) {
          auto& err = packet.error();
-         GlobalLogDebug("packet creation failed: {}:{}", err.CodeAsString(), err.Message());
+         GlobalLogDebug("packet creation failed: {} ({})", err.Message(), err.GetCodeAsInt());
          return;
       }
          
@@ -203,8 +207,6 @@ void SessionServer::WriteImpl() {
          // ...
          return;
       }
-      // increment counter for poly1305 nonce
-      ++self->message_counter_;
       // refresh timestamp
       self->last_timestamp_ = std::time(nullptr);
 
@@ -251,7 +253,7 @@ void Server::Acceptor() {
             socket.remote_endpoint().address().to_string(), socket.remote_endpoint().port());
          auto worker = PeekWorker();
          if (worker)
-            worker->AddClient(std::move(socket));
+            worker->CreateSession(std::move(socket));
          else GlobalLogError("no available workers");
       }
       Acceptor();
