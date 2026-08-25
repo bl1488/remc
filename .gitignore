@@ -1,2 +1,52 @@
-build
-logs
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+*.app
+
+# dirs
+[Bb]uild/
+[Dd]ist/
+[Cc]make-build-*/
+*.out/
+
+# cmake
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+
+# IDE
+# visual studio
+.vs/
+*.user
+*.suo
+*.sln
+*.vcxproj
+*.filters
+
+# vscode
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# clion/jetbrains
+.idea/
+
+# xcode
+*.xcodeproj/
+*.xcworkspace/
+
+# logs/tmp
+*.log
+*.tmp
+*.bak
+*.swp
