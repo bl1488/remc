@@ -8,8 +8,12 @@
 *.exe
 *.out
 *.app
+# keys
+private-keys.json
+public-keys.json
 
 # dirs
+[Ll]ogs/
 [Bb]uild/
 [Dd]ist/
 [Cc]make-build-*/
