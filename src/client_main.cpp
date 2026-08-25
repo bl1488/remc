@@ -3,6 +3,8 @@
 #include "net/client.h"
 #include "net/packet.h"
 
+#include "crypto/sk.h"
+
 #include <exception>
 
 int main(int argc, char** argv) {
@@ -13,6 +15,8 @@ int main(int argc, char** argv) {
       GlobalLogError("sodium init error");
       return 0;
    }
+
+#if 0
 
    std::string server_addr = "127.0.0.1";
    unsigned short port     = 12345;
@@ -99,6 +103,13 @@ int main(int argc, char** argv) {
    client.Stop();
    
    pool.join();
+#endif
+
+   if (remc::crypto::details::CreateKeysFile())
+      GlobalLogDebug("files with pairs created");
+   else GlobalLogDebug("file creation failed");
+
+   remc::crypto::details::PatchBinary("build/remc-server", "hello world");
 
    return 0;
 }

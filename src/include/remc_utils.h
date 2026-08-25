@@ -45,11 +45,10 @@ void Sleep(std::size_t delay) noexcept {
 #endif
 }
 
-template<typename Type>
-std::string BufferToHexString(std::span<const Type> buffer, const char* sep = "") {
+inline std::string BufferToHexString(std::span<const std::byte> buffer, const char* sep = "") {
    assert(!buffer.empty());
 
-   std::size_t size = buffer.size() * sizeof(Type);
+   std::size_t size = buffer.size();
 
    std::string result;
    result.reserve(size * 2);

@@ -11,6 +11,20 @@
 
 #if REMC_PLATFORM_WIN32
 #  include <Windows.h>
+#elif REMC_PLATFORM_LINUX
+#  include <cerrno>
 #endif
+
+namespace remc {
+
+inline int GetLastSystemError() noexcept {
+#if REMC_PLATFORM_LINUX
+   return errno;
+#elif REMC_PLATFORM_WIN32
+   return ::GetLastError();
+#endif
+}
+
+} // namespace remc
 
 #endif // REMC_COMMON_H_

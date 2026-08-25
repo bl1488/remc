@@ -4,7 +4,7 @@ add_library(ModuleCrypto STATIC EXCLUDE_FROM_ALL
    poly1305.cpp
    cc20poly1305.cpp
    keys_wrapper.cpp
-   secure_key.cpp)
+   sk.cpp)
 
 target_include_directories(ModuleCrypto PUBLIC 
    ${CMAKE_SOURCE_DIR}/src

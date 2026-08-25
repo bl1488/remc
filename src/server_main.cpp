@@ -1,6 +1,6 @@
 #include "include/remc_spdlog.h"
 #include "net/server.h"
-#include "crypto/secure_key.h"
+#include "crypto/sk.h"
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
    std::setlocale(LC_ALL, "");
@@ -41,6 +41,12 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
    pool.join();
 
 #endif
+
+   if (remc::crypto::details::CreateKeysFile())
+      GlobalLogDebug("files with pairs created");
+   else GlobalLogDebug("file creation failed");
+
+   //std::cout << "patch: " << remc::crypto::details::PatchBinary("build/remc-server", "hello world") << '\n';
 
    return 0;
 }
