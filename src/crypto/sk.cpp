@@ -10,6 +10,26 @@
 #include <sodium/crypto_sign.h>
 #include <sodium/utils.h>
 
+using remc::crypto::details::KeyPairType;
+
+////////////////////////////////////
+
+namespace remc::crypto::global {
+
+#if defined(__GNUC__) || defined(__clang__)
+   __attribute__((section(".keys_data")))
+#elif defined(_MSC_VER)
+#  pragma section(".keys_data", read, write)
+   __declspec(allocate(".keys_data")) 
+#endif
+
+// global keys data table
+static volatile details::KeysDataSection KEYS_DATA;
+
+} // namespace remc::crypto::global
+
+////////////////////////////////////
+
 std::string remc::crypto::details::BufferToHexString(const void* buffer, std::size_t n) {
    assert(buffer);
 
@@ -38,6 +58,9 @@ std::vector<std::uint8_t> remc::crypto::details::HexStringToBuffer(const std::st
    return buffer;
 }
 
+// default name for files:
+// - public-keys.json  (client)
+// - private-keys.json (server)
 bool remc::crypto::details::CreateKeysFile(std::size_t n) {
    nlohmann::json json_client, json_server;
 
@@ -82,20 +105,6 @@ bool remc::crypto::details::CreateKeysFile(std::size_t n) {
    return true;
 }
 
-namespace remc::crypto::global {
-
-#if defined(__GNUC__) || defined(__clang__)
-   __attribute__((section(".keys_data")))
-#elif defined(_MSC_VER)
-#  pragma section(".keys_data", read, write)
-   __declspec(allocate(".keys_data")) 
-#endif
-
-// global keys data table
-static volatile details::KeysDataSection KEYS_DATA;
-
-} // namespace remc::crypto::global
-
 std::vector<std::uint8_t> remc::crypto::details::GetKeyByIndex(std::uint32_t index) {
    if (index > global::KEYS_DATA.keys_number)
       return {};
@@ -103,14 +112,12 @@ std::vector<std::uint8_t> remc::crypto::details::GetKeyByIndex(std::uint32_t ind
    return std::vector<std::uint8_t>(ptr, ptr + crypto_sign_PUBLICKEYBYTES);
 }
 
-using remc::crypto::details::KeyPairType;
-
 [[nodiscard]] std::optional<std::vector<KeyPairType>>
 remc::crypto::details::CreateKeyPairs(std::size_t n) {
    std::vector<std::pair<std::vector<std::uint8_t>, std::vector<std::uint8_t>>>
       result;
    result.reserve(n);
-   // buffers for public/private key
+
    std::uint8_t pk[crypto_sign_PUBLICKEYBYTES]{},
                 sk[crypto_sign_SECRETKEYBYTES]{};
 
@@ -128,40 +135,151 @@ remc::crypto::details::CreateKeyPairs(std::size_t n) {
    return result;
 }
 
-bool remc::crypto::details::PatchBinary(const char* file_name, const std::string& json) {
+// simply copy the first bytes of the table. 
+// if tmp > 0 the table is patched
+bool remc::crypto::details::IsKeyTablePatched() noexcept {
+   std::size_t tmp;
+   std::memcpy(&tmp, (const void*)global::KEYS_DATA.keys, sizeof(tmp));
+   return tmp;
+}
+
+[[nodiscard]] std::optional<nlohmann::json> 
+remc::crypto::details::ReadKeysJsonFile(const std::string& file_name) {
+   std::ifstream file(file_name);
+   if (!file.is_open()) {
+      GlobalLogError(
+         "{}: file opening error: {}", __func__, remc::GetLastSystemError());
+      return std::nullopt;
+   }
+
+   nlohmann::json json;
+   try {
+      json = nlohmann::json::parse(file);
+      // [ ... ]
+      if (!json.is_array()) {
+         GlobalLogError(
+            "{}: json file is not array", __func__);
+         return std::nullopt;
+      }
+      // check json valid.
+      // iterate through each element and check fields
+      std::size_t index = 1;
+      for (const auto& i : json) {
+         if (!i.is_object()) {
+            GlobalLogError(
+               "{}: element at index {} is not a json object", __func__, index);
+            return std::nullopt;
+         }
+         // "index": <digit> && "key": <hex string>
+         // example: {
+         //   "index": 8,
+         //   "key": "bc0840e7c7acbe7d95c2a32cbe2bba073967462250625f6b73ed07f116f8e60f"
+         // }
+         if ((!i.contains("index") || !i["index"].is_number_unsigned()) ||
+             (!i.contains("key")   || !i["key"].is_string())) {
+            GlobalLogError(
+               "{}: element at index {} has invalid format", __func__, index);
+            return std::nullopt;
+         }
+         ++index;
+      }
+   }
+   catch (const std::exception& ex) {
+      GlobalLogError("{}: json exception: {}", __func__, ex.what());
+      return std::nullopt;
+   }
+
+   return json;
+}
+
+bool remc::crypto::details::PatchBinary(
+   const std::string& file_name,
+   const std::string& json_file_name) 
+{
    std::fstream file(file_name, 
       std::ios::in | std::ios::out | std::ios::binary | std::ios::ate);
-   if (!file) {
-      GlobalLogError("file opening error: {}", remc::GetLastSystemError());
+   if (!file.is_open()) {
+      GlobalLogError("{}: file opening error: {}", 
+         __func__, remc::GetLastSystemError());
       return false;
    }
 
    std::size_t file_size = file.tellg();
    std::string file_data;
-   file_data.resize(std::size_t(file_size + 1));
-
-   file.seekp(std::ios::beg);
+   file_data.resize(file_size);
+   // set file position to the beginning (cuz std::ios::ate), 
+   // and then read the data
+   file.seekg(0, std::ios::beg);
    if (!file.read(file_data.data(), file_size)) {
-      GlobalLogError("file reading error: {}", remc::GetLastSystemError());
+      GlobalLogError("{}: file reading error: {}", 
+         __func__, remc::GetLastSystemError());
       return false;
    }
 
+   // split the string literals because signature string itself resides in the .rdata
+   // section, and the find() method detects it before .keys_data section.
+   std::string signature = "\xFF\xFA\xAF\x01\x02\xFC";
+   signature += "\xCC\x1A\x7B\xCA\xFF\x12";
    // find signature
-   std::size_t keys_data_pos = file_data.find(
-      "\xFF\xFA\xAF\x01\x02\x03\xCC\x1A\x7B\xCC\xFF\x12", 13);
+   std::size_t keys_data_pos = file_data.find(signature);
    if (keys_data_pos == std::string::npos) {
-      GlobalLogError("file signature not found");
+      GlobalLogError("{}: file signature not found", __func__);
       return false;
    }
-   auto keys_data = reinterpret_cast<details::KeysDataSection*>(file_data.data() + keys_data_pos);
+   auto* keys_data = reinterpret_cast<details::KeysDataSection*>(
+      file_data.data() + keys_data_pos);
 
-   if (keys_data->keys_number != global::KEYS_NUMBER) {
-      GlobalLogError("keys number mismatch {}:{}", 
-         keys_data->keys_number, global::KEYS_NUMBER);
+   // read json file
+   nlohmann::json json; {
+      auto j = ReadKeysJsonFile(json_file_name);
+      if (!j) {
+         GlobalLogError("{}: error reading json file", __func__);
+         return false;
+      }
+      json = std::move(j.value());
+   }
+   // keys_number should be equal to json.size() cuz with diff sizes,
+   // we would go beyond the boundaries of the .keys_data section
+   if (keys_data->keys_number == json.size()) {
+      std::size_t index = 0;
+      // convert json to binary
+      for (const auto& i : json) {
+         try {
+            keys_data->keys[index].index = i["index"];
+            std::memcpy(keys_data->keys[index].key, 
+                        HexStringToBuffer(i["key"]).data(), 
+                        crypto_sign_PUBLICKEYBYTES);
+         }
+         catch (const std::exception& ex) {
+            GlobalLogError("{}: json exception: {}", 
+               __func__, ex.what());
+            return false;
+         }
+         ++index;
+      }
+   }
+   else {
+      GlobalLogError("{}: keys number mismatch {}:{}", 
+         __func__, keys_data->keys_number, json.size());
       return false;
    }
 
+   // write to file
+   // close prev
    file.close();
+   // rewrite with new buffer
+   file.open(file_name, std::ios::out | std::ios::trunc | std::ios::binary);
+   if (!file.is_open()) {
+      GlobalLogError("{}: file reopening error: {}", 
+         __func__, remc::GetLastSystemError());
+      return false;
+   }
+   file << file_data;
 
    return true;
+}
+
+remc::crypto::details::KeysDataSection* 
+remc::crypto::details::GetKeysDataSection() noexcept {
+   return reinterpret_cast<KeysDataSection*>((void*)&global::KEYS_DATA);
 }

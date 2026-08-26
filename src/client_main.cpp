@@ -105,11 +105,7 @@ int main(int argc, char** argv) {
    pool.join();
 #endif
 
-   if (remc::crypto::details::CreateKeysFile())
-      GlobalLogDebug("files with pairs created");
-   else GlobalLogDebug("file creation failed");
-
-   remc::crypto::details::PatchBinary("build/remc-server", "hello world");
+   
 
    return 0;
 }

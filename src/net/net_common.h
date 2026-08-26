@@ -2,6 +2,7 @@
 #define NET_COMMON_H_
 
 #include "include/remc_common.h"
+
 #include <sodium/core.h>
 
 #if REMC_PLATFORM_LINUX

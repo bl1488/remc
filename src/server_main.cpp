@@ -42,11 +42,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
 
 #endif
 
-   if (remc::crypto::details::CreateKeysFile())
-      GlobalLogDebug("files with pairs created");
-   else GlobalLogDebug("file creation failed");
-
-   //std::cout << "patch: " << remc::crypto::details::PatchBinary("build/remc-server", "hello world") << '\n';
+   
 
    return 0;
 }
