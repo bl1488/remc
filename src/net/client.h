@@ -1,9 +1,9 @@
 #ifndef REMC_CLIENT_H_
 #define REMC_CLIENT_H_
 
-#include "session_base.h"
-#include "packet.h"
-#include "include/ring_buffer.h"
+#include "net/session-base.h"
+#include "net/packet.h"
+#include "include/ring-buffer.h"
 
 #include <functional>
 

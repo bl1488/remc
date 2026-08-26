@@ -1,6 +1,6 @@
-#include "server.h"
-#include "packet.h"
-#include "include/remc_spdlog.h"
+#include "net/server.h"
+#include "net/packet.h"
+#include "include/remc-spdlog.h"
 
 namespace remc::net {
 

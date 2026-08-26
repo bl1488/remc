@@ -2,7 +2,7 @@
 // URL: https://github.com/bitcoin/bitcoin/blob/master/src/crypto/chacha20.cpp
 //
 #include "chacha20.h"
-#include "include/remc_utils.h"
+#include "include/remc-utils.h"
 
 #include <algorithm>
 #include <bit>

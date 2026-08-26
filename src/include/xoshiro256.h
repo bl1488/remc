@@ -1,5 +1,5 @@
-#ifndef XOSHIRO256_RANDOM_H_
-#define XOSHIRO256_RANDOM_H_
+#ifndef XOSHIRO256_H_
+#define XOSHIRO256_H_
 
 #include <random>
 

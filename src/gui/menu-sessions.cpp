@@ -1,5 +1,5 @@
-#include "gui_main.h"
-#include "include/remc_spdlog.h"
+#include "gui/gui-main.h"
+#include "include/remc-spdlog.h"
 
 #include <QVBoxLayout>
 #include <QPushButton>

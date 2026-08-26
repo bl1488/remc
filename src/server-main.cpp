@@ -1,6 +1,5 @@
-#include "include/remc_spdlog.h"
+#include "include/remc-spdlog.h"
 #include "net/server.h"
-#include "crypto/sk.h"
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
    std::setlocale(LC_ALL, "");

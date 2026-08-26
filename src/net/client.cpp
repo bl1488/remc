@@ -1,16 +1,18 @@
-#include "client.h"
-#include "packet.h"
-#include "include/remc_spdlog.h"
-
-namespace remc::net {
+#include "net/client.h"
+#include "net/packet.h"
+#include "include/remc-spdlog.h"
 
 // instance
-template class SessionBase<SessionClient>;
+template class remc::net::SessionBase<remc::net::SessionClient>;
    
 //
 // SessionClient
 //
-bool SessionClient::Write(Packet::Flags flags, std::string_view payload, WriteCallbackType cb) {
+bool remc::net::SessionClient::Write(
+   Packet::Flags     flags, 
+   std::string_view  payload, 
+   WriteCallbackType cb) 
+{
    if (payload.size() > global::TCP_PAYLOAD_SIZE_MAX)
       return false;
 
@@ -20,7 +22,11 @@ bool SessionClient::Write(Packet::Flags flags, std::string_view payload, WriteCa
    return Write(flags, std::move(vec), std::move(cb));
 }
 
-bool SessionClient::Write(Packet::Flags flags, std::vector<std::byte> payload, WriteCallbackType cb) {
+bool remc::net::SessionClient::Write(
+   Packet::Flags          flags, 
+   std::vector<std::byte> payload, 
+   WriteCallbackType      cb) 
+{
    // invalid payload data
    // not slicing and return false
    if (payload.size() > global::TCP_PAYLOAD_SIZE_MAX)
@@ -57,7 +63,9 @@ bool SessionClient::Write(Packet::Flags flags, std::vector<std::byte> payload, W
    return true;
 }
 
-void SessionClient::WriteImpl(WriteCallbackType cb) {
+void remc::net::SessionClient::WriteImpl(
+   WriteCallbackType cb) 
+{
    auto opt = message_queue_.Pop<uint16_t>();
    if (!opt) {
       GlobalLogDebug("message queue Pop() failed");
@@ -82,7 +90,7 @@ void SessionClient::WriteImpl(WriteCallbackType cb) {
    });
 }
 
-void SessionClient::Read() {
+void remc::net::SessionClient::Read() {
    auto buffer = std::make_shared<std::vector<std::byte>>(global::TCP_TOTAL_PACKET_SIZE);
    // async read
    socket_.async_read_some(asio::buffer(*buffer),
@@ -121,5 +129,3 @@ void SessionClient::Read() {
       self->Read();
    });
 }
-
-} // namespace remc::net

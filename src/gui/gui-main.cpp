@@ -1,6 +1,6 @@
-#include "gui_main.h"
-#include "details.h"
-#include "include/remc_spdlog.h"
+#include "gui/gui-main.h"
+#include "gui/details.h"
+#include "include/remc-spdlog.h"
 
 #include <cassert>
 
@@ -47,7 +47,7 @@ void MainWindow::InitStyles(QApplication* qapp) {
    qapp->setPalette(palette);
 
    // qss menu-bar
-   QFile file(details::GetFileAbsolutePath("/styles/menu_bar.qss"));
+   QFile file(details::GetFileAbsolutePath("/styles/menu-bar.qss"));
    if (file.open(QFile::ReadOnly | QFile::Text)) {
       qapp->setStyleSheet(QLatin1String(file.readAll()));
       GlobalLogDebug("qss: menu-bar loaded");

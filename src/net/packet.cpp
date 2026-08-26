@@ -1,4 +1,4 @@
-#include "packet.h"
+#include "net/packet.h"
 #include "crypto/cc20poly1305.h"
 
 #include <bitsery/serializer.h>

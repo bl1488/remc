@@ -101,14 +101,14 @@ message("=======================================")
 # ====================
 if (BUILD_SERVER)
    add_executable(remc-server 
-      src/server_main.cpp)
+      src/server-main.cpp)
    target_link_libraries(remc-server PRIVATE 
       ModuleNet)
 endif()
 
 if (BUILD_CLIENT)
    add_executable(remc-client
-      src/client_main.cpp)
+      src/client-main.cpp)
    target_link_libraries(remc-client PRIVATE
       ModuleNet)
 endif()

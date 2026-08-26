@@ -1,10 +1,11 @@
 // ChaCha20Poly1305 impl from Bitcoin Core
 // URL: https://github.com/bitcoin/bitcoin/blob/master/src/crypto/chacha20poly1305.cpp
 //
+#include "include/remc-utils.h"
+
 #include "cc20poly1305.h"
 #include "chacha20.h"
 #include "cc20poly1305.h"
-#include "include/remc_utils.h"
 
 namespace remc::crypto {
 

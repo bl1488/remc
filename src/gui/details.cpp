@@ -1,4 +1,4 @@
-#include "details.h"
+#include "gui/details.h"
 
 #include <QFileInfo>
 #include <QHBoxLayout>

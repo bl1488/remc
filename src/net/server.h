@@ -2,8 +2,8 @@
 #define REMC_SERVER_H_
 
 #include "net/packet.h"
-#include "session_base.h"
-#include "include/ring_buffer.h"
+#include "net/session-base.h"
+#include "include/ring-buffer.h"
 
 #include <atomic>
 

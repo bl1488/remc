@@ -1,8 +1,8 @@
 #ifndef REMC_SESSION_BASE_H_
 #define REMC_SESSION_BASE_H_
 
-#include "include/remc_utils.h"
-#include "crypto/keys_wrapper.h"
+#include "include/remc-utils.h"
+#include "crypto/keys.h"
 
 #include <memory>
 #include <ctime>
@@ -48,7 +48,7 @@ public:
 
    // returns ref to member.
    // work with keys using this function
-   constexpr crypto::KeysWrapper& KeysInfo() noexcept { return keys_; }
+   constexpr crypto::SessionsKeys& KeysInfo() noexcept { return keys_; }
 
 protected:
    // call this when creating session.
@@ -58,16 +58,16 @@ protected:
    }
 
 protected:
-   tcp::socket         socket_;
+   tcp::socket          socket_;
    // session private and shared key
-   crypto::KeysWrapper keys_;
+   crypto::SessionsKeys keys_;
    // session id for managment by worker or smth else
-   std::uint64_t       session_id_{};
+   std::uint64_t        session_id_{};
    // nonce for cc20-poly1305.
    // increment this in Read()
-   std::uint64_t       message_counter_{};
+   std::uint64_t        message_counter_{};
    // session lifetime (heartbeat)
-   std::time_t         last_timestamp_{};
+   std::time_t          last_timestamp_{};
 };
 
 } // namespace remc::net

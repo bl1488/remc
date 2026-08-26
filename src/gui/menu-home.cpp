@@ -1,4 +1,4 @@
-#include "gui_main.h"
+#include "gui/gui-main.h"
 
 #include <QPushButton>
 

@@ -1,5 +1,5 @@
-#ifndef REMC_SPDLOG_WRAPPER_H_
-#define REMC_SPDLOG_WRAPPER_H_
+#ifndef REMC_SPDLOG_H_
+#define REMC_SPDLOG_H_
 
 #include "spdlog/common.h"
 
@@ -96,4 +96,4 @@ inline void GlobalLog(
 
 #define GlobalLogDebug(...)   remc::GlobalLog(spdlog::level::debug, __VA_ARGS__)
 
-#endif // REMC_SPDLOG_WRAPPER_H_
+#endif // REMC_SPDLOG_H_

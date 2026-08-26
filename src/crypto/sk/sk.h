@@ -29,8 +29,6 @@ constexpr std::uint32_t KEYS_NUMBER = 100;
 
 } // namespace remc::crypto::global
 
-namespace details {
-
 ////////////////////////////////////
 
 #pragma pack(push, 1) // no padding here
@@ -100,7 +98,7 @@ CreateKeyPairs(
 );
 
 // returns a pointer to the global key table
-KeysDataSection* GetKeysDataSection() noexcept;
+KeysDataSection* GetGlobalKeysDataTable() noexcept;
 
 // checks the initialization of the key table.
 // if returns false, it means the binary was not patched.
@@ -114,8 +112,6 @@ PatchBinary(
    const std::string& file_name,
    const std::string& json_file_name
 );
-
-} // namespace remc::crypto::details
 
 } // namespace remc::crypto
 

@@ -1,6 +1,6 @@
 #include "sk.h"
-#include "include/remc_common.h"
-#include "include/remc_spdlog.h"
+#include "include/remc-common.h"
+#include "include/remc-spdlog.h"
 
 #include <exception>
 #include <fstream>
@@ -9,8 +9,6 @@
 #include <sodium.h>
 #include <sodium/crypto_sign.h>
 #include <sodium/utils.h>
-
-using remc::crypto::details::KeyPairType;
 
 ////////////////////////////////////
 
@@ -24,13 +22,13 @@ namespace remc::crypto::global {
 #endif
 
 // global keys data table
-static volatile details::KeysDataSection KEYS_DATA;
+static volatile KeysDataSection KEYS_DATA;
 
 } // namespace remc::crypto::global
 
 ////////////////////////////////////
 
-std::string remc::crypto::details::BufferToHexString(const void* buffer, std::size_t n) {
+std::string remc::crypto::BufferToHexString(const void* buffer, std::size_t n) {
    assert(buffer);
 
    std::string str;
@@ -42,7 +40,7 @@ std::string remc::crypto::details::BufferToHexString(const void* buffer, std::si
    return str;
 }
 
-std::vector<std::uint8_t> remc::crypto::details::HexStringToBuffer(const std::string& hex) {
+std::vector<std::uint8_t> remc::crypto::HexStringToBuffer(const std::string& hex) {
    std::size_t size = hex.size() / 2;
    std::vector<std::uint8_t> buffer(size);
 
@@ -61,7 +59,7 @@ std::vector<std::uint8_t> remc::crypto::details::HexStringToBuffer(const std::st
 // default name for files:
 // - public-keys.json  (client)
 // - private-keys.json (server)
-bool remc::crypto::details::CreateKeysFile(std::size_t n) {
+bool remc::crypto::CreateKeysFile(std::size_t n) {
    nlohmann::json json_client, json_server;
 
    std::ofstream file_server("private-keys.json"), 
@@ -105,15 +103,17 @@ bool remc::crypto::details::CreateKeysFile(std::size_t n) {
    return true;
 }
 
-std::vector<std::uint8_t> remc::crypto::details::GetKeyByIndex(std::uint32_t index) {
+std::vector<std::uint8_t> remc::crypto::GetKeyByIndex(std::uint32_t index) {
    if (index > global::KEYS_DATA.keys_number)
       return {};
    auto* ptr = global::KEYS_DATA.keys[index].key;
    return std::vector<std::uint8_t>(ptr, ptr + crypto_sign_PUBLICKEYBYTES);
 }
 
+using remc::crypto::KeyPairType;
+
 [[nodiscard]] std::optional<std::vector<KeyPairType>>
-remc::crypto::details::CreateKeyPairs(std::size_t n) {
+remc::crypto::CreateKeyPairs(std::size_t n) {
    std::vector<std::pair<std::vector<std::uint8_t>, std::vector<std::uint8_t>>>
       result;
    result.reserve(n);
@@ -137,14 +137,14 @@ remc::crypto::details::CreateKeyPairs(std::size_t n) {
 
 // simply copy the first bytes of the table. 
 // if tmp > 0 the table is patched
-bool remc::crypto::details::IsKeyTablePatched() noexcept {
+bool remc::crypto::IsKeyTablePatched() noexcept {
    std::size_t tmp;
    std::memcpy(&tmp, (const void*)global::KEYS_DATA.keys, sizeof(tmp));
    return tmp;
 }
 
 [[nodiscard]] std::optional<nlohmann::json> 
-remc::crypto::details::ReadKeysJsonFile(const std::string& file_name) {
+remc::crypto::ReadKeysJsonFile(const std::string& file_name) {
    std::ifstream file(file_name);
    if (!file.is_open()) {
       GlobalLogError(
@@ -192,7 +192,7 @@ remc::crypto::details::ReadKeysJsonFile(const std::string& file_name) {
    return json;
 }
 
-bool remc::crypto::details::PatchBinary(
+bool remc::crypto::PatchBinary(
    const std::string& file_name,
    const std::string& json_file_name) 
 {
@@ -226,7 +226,7 @@ bool remc::crypto::details::PatchBinary(
       GlobalLogError("{}: file signature not found", __func__);
       return false;
    }
-   auto* keys_data = reinterpret_cast<details::KeysDataSection*>(
+   auto* keys_data = reinterpret_cast<KeysDataSection*>(
       file_data.data() + keys_data_pos);
 
    // read json file
@@ -279,7 +279,7 @@ bool remc::crypto::details::PatchBinary(
    return true;
 }
 
-remc::crypto::details::KeysDataSection* 
-remc::crypto::details::GetKeysDataSection() noexcept {
+remc::crypto::KeysDataSection* 
+remc::crypto::GetGlobalKeysDataTable() noexcept {
    return reinterpret_cast<KeysDataSection*>((void*)&global::KEYS_DATA);
 }

@@ -1,8 +1,8 @@
 #ifndef REMC_UTILS_H_
 #define REMC_UTILS_H_
 
-#include "remc_common.h"
-#include "xoshiro256_random.h"
+#include "remc-common.h"
+#include "xoshiro256.h"
 
 #include <chrono>
 #include <cassert>

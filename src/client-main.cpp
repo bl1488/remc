@@ -1,9 +1,7 @@
-#include "include/remc_spdlog.h"
-#include "include/remc_utils.h"
+#include "include/remc-spdlog.h"
+#include "include/remc-utils.h"
 #include "net/client.h"
 #include "net/packet.h"
-
-#include "crypto/sk.h"
 
 #include <exception>
 

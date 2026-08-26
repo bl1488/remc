@@ -4,7 +4,7 @@
 #ifndef CRYPTO_CHACHA20_H_
 #define CRYPTO_CHACHA20_H_
 
-#include "include/remc_utils.h"
+#include "include/remc-utils.h"
 
 #include <cstddef>
 #include <cstdint>

@@ -20,7 +20,7 @@ find_package(PkgConfig REQUIRED)
 
 target_compile_definitions(ModuleNet PUBLIC ASIO_STANDALONE)
 
-target_link_libraries(ModuleNet      PUBLIC 
+target_link_libraries(ModuleNet PUBLIC 
    ModuleCrypto
    absl::flat_hash_map)
 # windows
@@ -28,6 +28,6 @@ if (WIN32)
    target_link_libraries(ModuleNet PUBLIC ws2_32 mswsock)
 endif()
 
-target_precompile_headers(ModuleNet  PUBLIC 
+target_precompile_headers(ModuleNet PUBLIC 
    <asio.hpp> 
    <spdlog/spdlog.h>)

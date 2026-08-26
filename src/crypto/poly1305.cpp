@@ -1,8 +1,8 @@
 // Poly1305 impl from Bitcoin Core
 // URL: https://github.com/bitcoin/bitcoin/blob/master/src/crypto/poly1305.cpp
 //
-#include "poly1305.h"
-#include "include/remc_utils.h"
+#include "crypto/poly1305.h"
+#include "include/remc-utils.h"
 
 namespace remc::crypto {
 

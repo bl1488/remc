@@ -1,9 +1,7 @@
 #ifndef NET_COMMON_H_
 #define NET_COMMON_H_
 
-#include "include/remc_common.h"
-
-#include <sodium/core.h>
+#include "include/remc-common.h"
 
 #if REMC_PLATFORM_LINUX
 #  include <fcntl.h>
