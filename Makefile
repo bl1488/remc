@@ -16,7 +16,7 @@ define InitBinPatcher
 	@./${BUILD_DIR}/src/crypto/bin-patcher ${1} ${2}
 endef
 
-.PHONY:          \
+.PHONY:           \
 	configure     \
 	build-server  \
 	build-client  \
@@ -29,15 +29,15 @@ endef
 	clean
 
 configure:
-	@if [ ! -d "${BUILD_DIR}" ]; then  \
+	@if [ ! -d "${BUILD_DIR}" ]; then   \
 		cmake                           \
 		-G Ninja                        \
 		-DCMAKE_CXX_COMPILER=${CC}      \
 		-DREMC_BUILD_TYPE=${BUILD_TYPE} \
-			-DBUILD_CRYPTO_MODULE=ON     \
-			-DBUILD_NET_MODULE=ON        \
-			-DBUILD_GUI_MODULE=ON        \
-			-DBUILD_TEST_MODULE=ON       \
+			-DBUILD_CRYPTO_MODULE=ON    \
+			-DBUILD_NET_MODULE=ON       \
+			-DBUILD_GUI_MODULE=ON       \
+			-DBUILD_TEST_MODULE=ON      \
 		-DBUILD_SERVER=ON               \
 		-DBUILD_CLIENT=ON               \
 		-B ${BUILD_DIR};                \
