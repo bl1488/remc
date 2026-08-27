@@ -19,7 +19,8 @@ target_link_libraries(ModuleCrypto PRIVATE
    PkgConfig::SODIUM)
 
 # patcher executable
-add_executable(bin-patcher sk/patcher.cpp)
+add_executable(bin-patcher 
+   sk/patcher.cpp)
 target_link_libraries(bin-patcher PRIVATE ModuleCrypto)
 
 target_precompile_headers(ModuleCrypto PUBLIC <sodium.h>)

@@ -1,109 +1,62 @@
 #include "include/remc-spdlog.h"
-#include "include/remc-utils.h"
+#include "net/net-common.h"
 #include "net/client.h"
-#include "net/packet.h"
-
-#include <exception>
+#include "crypto/sk/sk.h"
 
 int main(int argc, char** argv) {
    std::setlocale(LC_ALL, "");
    
-   // init sodium
+   // checking keys table.
+   // if returns false, the binary is not patched
+   if (!remc::crypto::IsKeyTablePatched()) {
+      GlobalLogError("global key table is not patched");
+      return 0;
+   }
+   // init sodium for crypto module
    if (::sodium_init() < 0) {
       GlobalLogError("sodium init error");
       return 0;
    }
 
-#if 0
-
    std::string server_addr = "127.0.0.1";
-   unsigned short port     = 12345;
-   // args
+   unsigned short port     = remc::net::GENERAL_PORT;
    if (argc > 1) {
       server_addr = argv[1];
       if (argc > 2)
          port = std::stoi(argv[2]);
    }
+   else GlobalLogInfo("start on localhost: {}:{}", server_addr, port);
 
-   // external pool for client
-   asio::thread_pool pool(3);
+   // external pool
+   asio::thread_pool pool(5);
 
-   remc::net::InternalClient client(pool);
+   remc::net::InternalClient client(pool);   
    try {
       client.Connect(server_addr.c_str(), port);
    }
    catch (const std::exception& ex) {
-      GlobalLogError("connection to {} failed\n", server_addr);
+      GlobalLogError("connection to {} failed: {}", 
+         server_addr, ex.what());
+      // stop it ourselves cuz the thread_pool 
+      // would cause a SEGFAULT
+      client.Stop();
       return 0;
    }
 
    // init session
    auto session = client.GetSession().lock();
    session->Read();
-   
-   // handshake
-   session->Write(
-      remc::net::Packet::Handshake, 
-      std::string(session->KeysInfo().GetKeyAsString(session->KeysInfo().GetPublicKey())),
-      // callback
-      // getting server public key here
-      [](remc::net::Packet packet, std::shared_ptr<remc::net::SessionClient> session) {
-         if (packet.header.message_size == 32) {
-            if (!session->KeysInfo().ComputeSharedKey({ packet.payload.data(), packet.header.message_size }))
-                 GlobalLogError("error computing shared key");
-            else GlobalLogInfo("shared key successfully computed");
-         }
-         else GlobalLogError("cant compute shared key ({} != 32)", packet.header.message_size);
-      }
-   );
 
    // test loop
    for (std::string buffer;;) {
       std::cout << "enter a message: ";
       std::getline(std::cin >> std::ws, buffer);
-
-      if (buffer == "exit") {
-         GlobalLogInfo("exiting...");
-         break;
-      }
-      else if (buffer == "1") {
-         session->Write(remc::net::Packet::NoCrypto, 
-            std::format("no crypto message: {}", std::to_string(remc::utils::Random())));
-      }
-      else if (buffer == "2") {
-         session->Write(
-            remc::net::Packet::TestMessage, 
-            std::format("hello world: {}", remc::utils::Random()),
-            // callback
-            [](remc::net::Packet packet, [[maybe_unused]] std::shared_ptr<remc::net::SessionClient> session) {
-               std::cout << "version.........: " << packet.header.version      << '\n'
-                         << "flags...........: " << packet.header.flags        << '\n'
-                         << "timestamp.......: " << packet.header.timestamp    << '\n'
-                         << "message-id......: " << packet.header.message_id   << '\n'
-                         << "message-size....: " << packet.header.message_size << '\n'
-                         << "nonce...........: " << packet.header.nonce        << '\n';
-               std::cout << std::format("message.........: '{}'\n", packet.GetPayloadAsString());
-            }
-         );
-      }
-      else if (buffer == "3") {
-         std::cout << "session information:"                                             << '\n' 
-            << session->KeysInfo().GetKeyAsHexString(session->KeysInfo().GetPublicKey()) << '\n'
-            << session->KeysInfo().GetKeyAsHexString(session->KeysInfo().GetSharedKey()) << '\n'
-            << session->GetMessageCounter()                                              << '\n';
-      }
-      else {
-         if (!session->Write(remc::net::Packet::NoFlags, buffer))
-            GlobalLogWarning("Write failed");
-      }
    }
 
    client.Stop();
-   
-   pool.join();
-#endif
 
-   
+   pool.stop();
+   pool.join();
 
    return 0;
 }

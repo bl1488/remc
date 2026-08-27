@@ -8,6 +8,10 @@
 *.exe
 *.out
 *.app
+<<<<<<< HEAD
+=======
+
+>>>>>>> 7a2ef5a (added SK tests & edit some files)
 # keys
 private-keys.json
 public-keys.json

@@ -1,6 +1,7 @@
 #ifndef REMC_CLIENT_H_
 #define REMC_CLIENT_H_
 
+#include "asio/execution/occupancy.hpp"
 #include "net/session-base.h"
 #include "net/packet.h"
 #include "include/ring-buffer.h"
@@ -10,6 +11,7 @@
 #include <asio/executor_work_guard.hpp>
 #include <asio/io_context.hpp>
 #include <absl/container/flat_hash_map.h>
+#include <thread>
 
 namespace remc::net {
 
@@ -32,8 +34,15 @@ public:
       pool_(pool) {}
 
 public:
-   bool Write(Packet::Flags flags, std::vector<std::byte> payload, WriteCallbackType cb = nullptr);
-   bool Write(Packet::Flags flags, std::string_view       payload, WriteCallbackType cb = nullptr);
+   bool Write(
+      Packet::Flags          flags, 
+      std::vector<std::byte> payload, 
+      WriteCallbackType      cb = nullptr);
+
+   bool Write(
+      Packet::Flags     flags, 
+      std::string_view  payload, 
+      WriteCallbackType cb = nullptr);
 
    void Read();
 
@@ -51,12 +60,13 @@ private:
 
 // ===== Client =====
 //
-template<typename DerivedType>
 class ClientBase {
-protected:
-   // thread pool should be > 1
+public:
+   // number of threads must be > 1.
+   // i dont want to throw an exception so be careful in release mode
    ClientBase(asio::thread_pool& pool) : pool_(pool) {
-      static_assert(std::is_base_of_v<ClientBase<DerivedType>, DerivedType>);
+      assert(asio::query(pool.get_executor(), asio::execution::occupancy) > 1
+         && "insufficient number of threads in thread_pool");
    }
 
    ClientBase(const ClientBase&)                = delete;
@@ -78,30 +88,28 @@ public:
 
    asio::thread_pool& GetPool() noexcept { return pool_; }
 
-   std::weak_ptr<SessionClient> GetSession() const noexcept { return session_; }
+   std::weak_ptr<SessionClient> GetSession() 
+      const noexcept { return session_; }
    
-   asio::io_context& GetExecutor() noexcept {
-      return reinterpret_cast<DerivedType*>(this)->GetExecutorImpl();
-   }
+   virtual asio::io_context& GetExecutor() noexcept = 0;
 
 protected:
    // external thread pool
    asio::thread_pool& pool_;
    // session
-   std::shared_ptr<SessionClient>
-                      session_;
+   std::shared_ptr<SessionClient> session_;
 };
 
 // ===== ExternalClient =====
 //
-// work on external io_context
-class ExternalClient : public ClientBase<ExternalClient> {
+// works on external io_context
+class ExternalClient : public ClientBase {
 public:
-   ExternalClient(asio::io_context& external_io, asio::thread_pool& external_pool) 
-      : ClientBase(external_pool), io_(external_io) {}
+   ExternalClient(asio::io_context& external_io, asio::thread_pool& external_pool) : 
+      ClientBase(external_pool), io_(external_io) {}
 
 public:
-   asio::io_context& GetExecutorImpl() noexcept { return io_; }
+   asio::io_context& GetExecutor() noexcept override { return io_; }
 
 private:
    asio::io_context& io_;
@@ -109,21 +117,26 @@ private:
 
 // ===== InternalClient =====
 //
-// work on internal io_context
-class InternalClient : public ClientBase<InternalClient> {
+// works on internal io_context
+class InternalClient : public ClientBase {
 public:
-   InternalClient(asio::thread_pool& external_pool) 
-      : ClientBase(external_pool), work_guard_(io_.get_executor()) 
-   {
+   InternalClient(asio::thread_pool& external_pool) : 
+      ClientBase(external_pool), work_guard_(io_.get_executor()) {
       Run();
    }
 
+   ~InternalClient() { Stop(); }
+
 public:
-   void Run() { asio::post(pool_, [this]() { io_.run(); }); }
+   void Run() { asio::post(pool_, [this]{ io_.run(); }); }
 
-   void Stop() noexcept { work_guard_.reset(); }
+   void Stop() noexcept { 
+      work_guard_.reset();
+      while (!io_.stopped())
+         std::this_thread::yield();
+   }
 
-   asio::io_context& GetExecutorImpl() noexcept { return io_; }
+   asio::io_context& GetExecutor() noexcept override { return io_; }
 
 private:
    asio::io_context io_;
